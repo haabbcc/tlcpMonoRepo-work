@@ -47,13 +47,15 @@ demo/demo/server_tls
 # Tongsuo generated test/fuzz executables
 tongsuo/test/*test
 tongsuo/test/*_test
-tongsuo/test/buildtest_*
+tongsuo/test/buildtest_c_*
 tongsuo/fuzz/*-test
 
 # Additional Tongsuo generated test executables without common suffixes
-tongsuo/test/evp_extra_test*
+tongsuo/test/evp_extra_test
+tongsuo/test/evp_extra_test2
 tongsuo/test/v3ext
-tongsuo/test/threadstest*
+tongsuo/test/threadstest
+tongsuo/test/threadstest_fips
 tongsuo/test/x509aux
 tongsuo/test/bio_prefix_text
 tongsuo/test/versions
