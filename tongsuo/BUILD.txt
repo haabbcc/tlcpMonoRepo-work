@@ -1,0 +1,23 @@
+Tongsuo clean source build (matches typical Desktop/Tongsuo setup)
+
+Prerequisites: Perl, C compiler, make.
+
+1) Configure (NTLS/TLCP enabled; same option as prior configdata on donor tree)
+   ./Configure linux-x86_64 enable-ntls
+
+   On other platforms, replace the target, e.g.:
+   ./config enable-ntls
+
+2) Build
+   make -j"$(nproc)"
+
+3) Resulting tools
+   apps/openssl
+
+4) Optional install (adjust prefix as needed)
+   make install_sw DESTDIR=/path/to/stage
+
+Notes:
+- Run Configure from this directory; it creates Makefile and configdata.pm.
+- For pqmagic-based experiments (e.g. Dilithium), keep using your separate
+  provider build and LD_LIBRARY_PATH as in certs/1 scripts.

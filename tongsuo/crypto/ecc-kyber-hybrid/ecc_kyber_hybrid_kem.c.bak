@@ -1,0 +1,275 @@
+#include "internal/deprecated.h"
+
+#include "crypto/ecc_kyber_hybrid.h"
+
+#include <stdio.h>
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/kdf.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/x509.h>
+#include "crypto/kyber.h"
+
+ecc_kyber_hybrid_key * ecc_kyber_hybrid_key_new(void)
+{
+    ecc_kyber_hybrid_key * hybrid_key = OPENSSL_malloc(sizeof(ecc_kyber_hybrid_key));
+    if(hybrid_key == NULL)
+        goto err;
+    memset(hybrid_key, 0x00, sizeof(ecc_kyber_hybrid_key));
+    
+    hybrid_key->pk = OPENSSL_malloc(ECC_KYBER_HYBRID_PK_SIZE);
+    if(hybrid_key->pk == NULL)
+        goto err;
+    memset(hybrid_key->pk, 0x00, ECC_KYBER_HYBRID_PK_SIZE);
+
+    hybrid_key->sk = OPENSSL_malloc(ECC_KYBER_HYBRID_SK_SIZE);
+    if(hybrid_key->sk == NULL)
+        goto err;
+    memset(hybrid_key->sk, 0x00, ECC_KYBER_HYBRID_SK_SIZE);
+
+    hybrid_key->ct = OPENSSL_malloc(ECC_KYBER_HYBRID_CT_SIZE);
+    if(hybrid_key->ct == NULL)
+        goto err;
+    memset(hybrid_key->ct, 0x00, ECC_KYBER_HYBRID_CT_SIZE);
+
+    hybrid_key->ss = OPENSSL_malloc(ECC_KYBER_HYBRID_SS_SIZE);
+    if(hybrid_key->ss == NULL)
+        goto err;
+    memset(hybrid_key->ss, 0x00, ECC_KYBER_HYBRID_SS_SIZE);
+
+    hybrid_key->has_kem_sk = 0;
+
+    return hybrid_key;
+err:
+    if(hybrid_key) {
+        if(hybrid_key->pk)
+            OPENSSL_free(hybrid_key->pk);
+        if(hybrid_key->sk)
+            OPENSSL_free(hybrid_key->sk);
+        if(hybrid_key->ct)
+            OPENSSL_free(hybrid_key->ct);
+        if(hybrid_key->ss)
+            OPENSSL_free(hybrid_key->ss);
+        OPENSSL_free(hybrid_key);
+    }
+    return NULL;
+}
+
+void ecc_kyber_hybrid_key_free(ecc_kyber_hybrid_key * hybrid_key)
+{
+    if(hybrid_key == NULL)
+        return;
+    if(hybrid_key->pk) {
+        memset(hybrid_key->pk, 0x00, ECC_KYBER_HYBRID_PK_SIZE);
+        OPENSSL_free(hybrid_key->pk);
+    }    
+    if(hybrid_key->sk) {
+        memset(hybrid_key->sk, 0x00, ECC_KYBER_HYBRID_SK_SIZE);
+        OPENSSL_free(hybrid_key->sk);
+    }
+    if(hybrid_key->ct) {
+        memset(hybrid_key->ct, 0x00, ECC_KYBER_HYBRID_CT_SIZE);
+        OPENSSL_free(hybrid_key->ct); 
+    }
+    if(hybrid_key->ss) {
+        memset(hybrid_key->ss, 0x00, ECC_KYBER_HYBRID_SS_SIZE);
+        OPENSSL_free(hybrid_key->ss);
+    }
+    OPENSSL_free(hybrid_key);
+}
+
+
+int ecc_kyber_hybrid_keygen(OSSL_LIB_CTX * libctx, EVP_PKEY *ecc_pkey, uint8_t *pk, size_t pk_len, uint8_t *sk, size_t sk_len) {
+
+    int ret = 0;
+    EC_KEY * ec_key = NULL;
+    const BIGNUM * ec_key_sk;
+    const EC_POINT * ec_key_pk;
+    const EC_GROUP * group;
+
+    fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_keygen 开始 ==========\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 输入参数:\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   libctx: %p\n", libctx);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   ecc_pkey: %p\n", ecc_pkey);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   pk: %p, pk_len: %zu (期望: %d)\n", pk, pk_len, ECC_KYBER_HYBRID_PK_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   sk: %p, sk_len: %zu (期望: %d)\n", sk, sk_len, ECC_KYBER_HYBRID_SK_SIZE);
+
+    if(pk == NULL || sk == NULL || ecc_pkey == NULL) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 输入参数为NULL\n");
+        return 0;
+    }
+
+    if((pk_len < ECC_KYBER_HYBRID_PK_SIZE) || 
+        (sk_len < ECC_KYBER_HYBRID_SK_SIZE)) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 缓冲区长度不足\n");
+        return 0;
+    }
+
+    /* Get ECC key from certificate */
+    ec_key = EVP_PKEY_get1_EC_KEY(ecc_pkey);
+    if(ec_key == NULL) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 无法从EVP_PKEY获取EC_KEY\n");
+        goto err;
+    }
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 成功获取EC_KEY: %p\n", ec_key);
+
+    group = EC_KEY_get0_group(ec_key);
+    if(group == NULL) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 无法获取EC_GROUP\n");
+        goto err;
+    }
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 成功获取EC_GROUP: %p\n", group);
+   
+    /* Encode ECC private key from certificate */
+    ec_key_sk = EC_KEY_get0_private_key(ec_key);
+    if(ec_key_sk == NULL) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 无法获取ECC私钥\n");
+        goto err;
+    }
+    if(!BN_bn2binpad(ec_key_sk, sk, ECC_SK_SIZE)){
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: ECC私钥编码失败\n");
+        goto err;
+    }
+    fprintf(stderr, "[ECC_Kyber_Hybrid] ECC私钥已编码到 sk[0:%d]\n", ECC_SK_SIZE);
+     
+    /* Encode ECC public key from certificate */
+    ec_key_pk = EC_KEY_get0_public_key(ec_key);
+    if(ec_key_pk == NULL) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 无法获取ECC公钥\n");
+        goto err;
+    }
+    if(EC_POINT_point2oct(group, ec_key_pk, POINT_CONVERSION_UNCOMPRESSED, pk, ECC_PK_SIZE, NULL) != ECC_PK_SIZE) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: ECC公钥编码失败\n");
+        goto err;
+    }
+    fprintf(stderr, "[ECC_Kyber_Hybrid] ECC公钥已编码到 pk[0:%d]\n", ECC_PK_SIZE);
+    
+    /* Generate Kyber-768 key pair */
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 开始生成Kyber-768密钥对...\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   Kyber公钥将写入: pk[%d:%d]\n", ECC_PK_SIZE, ECC_PK_SIZE + KYBER_768_PK_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   Kyber私钥将写入: sk[%d:%d]\n", ECC_SK_SIZE, ECC_SK_SIZE + KYBER_768_SK_SIZE);
+    if(pqcrystals_kyber768_ref_keypair(pk + ECC_PK_SIZE, sk + ECC_SK_SIZE) != 0) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: Kyber-768密钥对生成失败\n");
+        goto err;
+    }
+    fprintf(stderr, "[ECC_Kyber_Hybrid] Kyber-768密钥对生成成功\n");
+    ret = 1;
+    fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_keygen 成功完成 ==========\n");
+
+err:
+    if (ec_key != NULL)
+        EC_KEY_free(ec_key);
+    if (ret == 0)
+        fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_keygen 失败 ==========\n");
+    return ret;
+}
+
+int ecc_kyber_hybrid_encaps(OSSL_LIB_CTX * libctx, uint8_t *ss, size_t ss_len, uint8_t *ct, size_t ct_len, const uint8_t *pk, size_t pk_len) {
+    int ret = 0;
+
+    fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_encaps 开始 ==========\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 输入参数:\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   libctx: %p\n", libctx);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   pk: %p, pk_len: %zu (期望: %d)\n", pk, pk_len, ECC_KYBER_HYBRID_PK_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   ct: %p, ct_len: %zu (期望: >= %d)\n", ct, ct_len, ECC_KYBER_HYBRID_CT_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   ss: %p, ss_len: %zu (期望: >= %d)\n", ss, ss_len, KYBER_768_SS_SIZE);
+
+    if(pk == NULL || ct == NULL || ss == NULL) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 输入参数为NULL\n");
+        return 0;
+    }
+
+    /* pk should contain ECC_PK_SIZE + KYBER_768_PK_SIZE, but we only use Kyber part */
+    /* ss should be at least KYBER_768_SS_SIZE (32 bytes) for Kyber shared secret */
+    if((pk_len != ECC_KYBER_HYBRID_PK_SIZE) || 
+        (ss_len < KYBER_768_SS_SIZE) ||
+        (ct_len < ECC_KYBER_HYBRID_CT_SIZE)){
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 缓冲区长度不匹配\n");
+        fprintf(stderr, "[ECC_Kyber_Hybrid]   pk_len: %zu (期望: %d)\n", pk_len, ECC_KYBER_HYBRID_PK_SIZE);
+        fprintf(stderr, "[ECC_Kyber_Hybrid]   ss_len: %zu (期望: >= %d)\n", ss_len, KYBER_768_SS_SIZE);
+        fprintf(stderr, "[ECC_Kyber_Hybrid]   ct_len: %zu (期望: >= %d)\n", ct_len, ECC_KYBER_HYBRID_CT_SIZE);
+        return 0;
+    }
+
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 混合公钥结构:\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   ECC公钥部分: pk[0:%d] (将跳过)\n", ECC_PK_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   Kyber公钥部分: pk[%d:%d] (将使用)\n", ECC_PK_SIZE, ECC_PK_SIZE + KYBER_768_PK_SIZE);
+
+    /* Kyber-768 key encapsulation only */
+    /* pk + ECC_PK_SIZE points to Kyber public key */
+    /* ct is Kyber ciphertext */
+    /* ss is Kyber shared secret (32 bytes) */
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 开始执行Kyber-768封装...\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   输入: Kyber公钥地址 = pk + %d = %p\n", ECC_PK_SIZE, pk + ECC_PK_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   输出: 密文地址 = %p, 共享秘密地址 = %p\n", ct, ss);
+    if (pqcrystals_kyber768_ref_enc(ct, ss, pk + ECC_PK_SIZE) != 0) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: Kyber-768封装失败\n");
+        OPENSSL_cleanse(ss, ss_len);
+        goto err;
+    }
+    fprintf(stderr, "[ECC_Kyber_Hybrid] Kyber-768封装成功\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   生成的密文长度: %d 字节\n", ECC_KYBER_HYBRID_CT_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   生成的共享秘密长度: %d 字节\n", KYBER_768_SS_SIZE);
+    
+    ret = 1;
+    fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_encaps 成功完成 ==========\n");
+err:
+    if (ret == 0)
+        fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_encaps 失败 ==========\n");
+    return ret;
+}
+
+int ecc_kyber_hybrid_decaps(OSSL_LIB_CTX * libctx, uint8_t *ss, size_t ss_len, const uint8_t *ct, size_t ct_len, const uint8_t *sk, size_t sk_len) {
+    int ret = 0;
+
+    fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_decaps 开始 ==========\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 输入参数:\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   libctx: %p\n", libctx);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   ct: %p, ct_len: %zu (期望: %d)\n", ct, ct_len, ECC_KYBER_HYBRID_CT_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   sk: %p, sk_len: %zu (期望: %d)\n", sk, sk_len, ECC_KYBER_HYBRID_SK_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   ss: %p, ss_len: %zu (期望: >= %d)\n", ss, ss_len, KYBER_768_SS_SIZE);
+
+    if(ss == NULL || ct == NULL || sk == NULL) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 输入参数为NULL\n");
+        return 0;
+    }
+
+    /* ss should be at least KYBER_768_SS_SIZE (32 bytes) for Kyber shared secret */
+    if((ss_len < KYBER_768_SS_SIZE) || 
+        (ct_len != ECC_KYBER_HYBRID_CT_SIZE) ||
+        (sk_len != ECC_KYBER_HYBRID_SK_SIZE)){
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: 缓冲区长度不匹配\n");
+        fprintf(stderr, "[ECC_Kyber_Hybrid]   ss_len: %zu (期望: >= %d)\n", ss_len, KYBER_768_SS_SIZE);
+        fprintf(stderr, "[ECC_Kyber_Hybrid]   ct_len: %zu (期望: %d)\n", ct_len, ECC_KYBER_HYBRID_CT_SIZE);
+        fprintf(stderr, "[ECC_Kyber_Hybrid]   sk_len: %zu (期望: %d)\n", sk_len, ECC_KYBER_HYBRID_SK_SIZE);
+        return 0;
+    }
+
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 混合私钥结构:\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   ECC私钥部分: sk[0:%d] (将跳过)\n", ECC_SK_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   Kyber私钥部分: sk[%d:%d] (将使用)\n", ECC_SK_SIZE, ECC_SK_SIZE + KYBER_768_SK_SIZE);
+
+    /* Kyber decapsulation only */
+    /* ct is Kyber ciphertext */
+    /* sk + ECC_SK_SIZE points to Kyber secret key */
+    /* ss is Kyber shared secret (32 bytes) */
+    fprintf(stderr, "[ECC_Kyber_Hybrid] 开始执行Kyber-768解封装...\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   输入: 密文地址 = %p, 长度 = %d\n", ct, ECC_KYBER_HYBRID_CT_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   输入: Kyber私钥地址 = sk + %d = %p\n", ECC_SK_SIZE, sk + ECC_SK_SIZE);
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   输出: 共享秘密地址 = %p\n", ss);
+    if (pqcrystals_kyber768_ref_dec(ss, ct, sk + ECC_SK_SIZE) != 0) {
+        fprintf(stderr, "[ECC_Kyber_Hybrid] 错误: Kyber-768解封装失败\n");
+        OPENSSL_cleanse(ss, ss_len);
+        goto err;
+    }
+    fprintf(stderr, "[ECC_Kyber_Hybrid] Kyber-768解封装成功\n");
+    fprintf(stderr, "[ECC_Kyber_Hybrid]   恢复的共享秘密长度: %d 字节\n", KYBER_768_SS_SIZE);
+
+    ret = 1;
+    fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_decaps 成功完成 ==========\n");
+err:    
+    if (ret == 0)
+        fprintf(stderr, "[ECC_Kyber_Hybrid] ========== ecc_kyber_hybrid_decaps 失败 ==========\n");
+    return ret;
+}

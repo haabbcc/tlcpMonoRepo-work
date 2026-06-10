@@ -1,0 +1,104 @@
+i:[0]
+(crypto/engine/eng_list.c:381) engine name[Í%6ú]:addr=(nil)
+(crypto/engine/eng_list.c:381) engine name[(null)]:addr=0x7ffa11aab070
+(crypto/engine/eng_list.c:381) engine name[Í%6ú]:addr=(nil)
+(crypto/engine/eng_list.c:404) engine by id,addr=0x7ffa0c022380
+(crypto/engine/eng_list.c:414) dynamic load engine:addr=0x7ffa0c022380
+[E_DestroySDF]-[00289]: trace
+[E_InitSDF]-[00253]: ----env is [/home/vegw/gsk/demo/lib/libhsm_sdf_api.so]-----
+[loadLibrary]-[00016]: trace
+[loadLibrary]-[00022]: trace
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_OpenDevice
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_CloseDevice
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_OpenSession
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_CloseSession
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_GetDeviceInfo
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_Encrypt
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_Decrypt
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ImportKey
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_DestroyKey
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDFE_GenSignKeyPair_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ReleasePrivateKeyAccessRight
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_GetPrivateKeyAccessRight
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_InternalSign_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_InternalVerify_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_InternalEncrypt_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_InternalDecrypt_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ExternalEncrypt_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ExternalVerify_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ExportSignPublicKey_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ExportEncPublicKey_ECC
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ExternalPublicKeyOperation_RSA
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_InternalPrivateKeyOperation_RSA
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ExportSignPublicKey_RSA
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_ExportEncPublicKey_RSA
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_HashInit
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_HashUpdate
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_HashFinal
+[findSymbol]-[00048]: trace
+[findSymbol]-[00054]: findSymbol: SDF_Ext_InputPIN
+[OpenDevice]-[00369]: trace
+[OpenDevice]-[00376]: api.SDF_OpenDevice(&hdevice) success
+[OpenDevice]-[00379]: api.SDF_OpenSession(hdevice, &hsession) success
+[OpenDevice]-[00387]: api.SDF_GetDeviceInfo(hsession, &stDevInfo) success
+IssuerName: Hikvision
+DeviceName: HikHSM-P3010
+DeviceSerial: 2021051401800003
+DeviceVersion: 0x23030000
+StandardVersion: 0x20210512
+AsymAlgAbility[0]: 0x30e00
+AsymAlgAbility[1]: 0xd00
+SymAlgAbility: 0x513
+HashAlgAbility: 0x1
+BufferSize: 0x1000000
+[OpenDevice]-[00422]: api.SDF_Ext_InputPIN(PIN, 8) success
+[OpenDevice]-[00432]: api.SDF_CloseSession(hsession) success
+[gm_nid_Init]-[00096]: trace
+[gm_nid_Init]-[00098]: trace
+[E_create_ciphers]-[00053]: trace
+[E_pmeth_init]-[00121]: trace
+[E_pmeth_init]-[00139]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00134]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-[00144]: trace
+[E_pmeth_init]-

@@ -1,0 +1,53 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1193052 (0x12345c)
+        Signature Algorithm: sm2withsm3
+        Issuer: C=CN, ST=BJ, L=HaiDian, O=Beijing JNTA Technology LTD., OU=SORB of TASS, CN=Test CA (SM2)
+        Validity
+            Not Before: Apr 20 06:30:41 2020 GMT
+            Not After : Apr 20 06:30:41 2021 GMT
+        Subject: CN=10.19.200.65, C=CN
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:24:c9:ff:3d:30:3a:af:f0:c4:54:5d:a4:88:02:
+                    87:65:1a:3c:e7:82:24:91:b8:a0:f8:7a:06:16:67:
+                    a6:a7:42:56:ee:8f:59:58:5b:9f:73:9f:48:fb:c0:
+                    9a:69:5f:22:15:d5:d6:47:4f:97:5c:91:43:fc:9b:
+                    79:54:bf:58:3c
+                ASN1 OID: SM2
+        X509v3 extensions:
+            X509v3 Subject Alternative Name: 
+                IP Address:127.0.0.1, IP Address:10.19.200.65
+            X509v3 Key Usage: 
+                Digital Signature, Non Repudiation
+            X509v3 Extended Key Usage: 
+                TLS Web Client Authentication, TLS Web Server Authentication
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            X509v3 Subject Key Identifier: 
+                81:57:FA:D8:45:94:C2:7E:AD:EA:30:84:57:9B:21:5E:11:BA:1F:7C
+            X509v3 Authority Key Identifier: 
+                keyid:39:3A:68:C5:F8:C4:EF:0F:32:D3:EB:B1:0E:5C:19:58:C3:26:11:DB
+
+    Signature Algorithm: sm2withsm3
+         30:45:02:21:00:af:5a:3e:e2:e9:bd:fc:5c:0e:67:bc:86:23:
+         94:6a:03:fe:34:82:71:f4:e2:3b:b9:dc:15:27:89:cf:2f:e0:
+         aa:02:20:4e:13:9d:a5:ce:f0:57:02:70:4a:35:2c:7b:5d:93:
+         2d:85:5e:90:fb:d2:97:59:54:3e:20:1d:7a:81:29:e5:21
+-----BEGIN CERTIFICATE-----
+MIICKjCCAdCgAwIBAgIDEjRcMAoGCCqBHM9VAYN1MIGCMQswCQYDVQQGEwJDTjEL
+MAkGA1UECAwCQkoxEDAOBgNVBAcMB0hhaURpYW4xJTAjBgNVBAoMHEJlaWppbmcg
+Sk5UQSBUZWNobm9sb2d5IExURC4xFTATBgNVBAsMDFNPUkIgb2YgVEFTUzEWMBQG
+A1UEAwwNVGVzdCBDQSAoU00yKTAeFw0yMDA0MjAwNjMwNDFaFw0yMTA0MjAwNjMw
+NDFaMCQxFTATBgNVBAMMDDEwLjE5LjIwMC42NTELMAkGA1UEBhMCQ04wWTATBgcq
+hkjOPQIBBggqgRzPVQGCLQNCAAQkyf89MDqv8MRUXaSIAodlGjzngiSRuKD4egYW
+Z6anQlbuj1lYW59zn0j7wJppXyIV1dZHT5dckUP8m3lUv1g8o4GRMIGOMBUGA1Ud
+EQQOMAyHBH8AAAGHBAoTyEEwCwYDVR0PBAQDAgbAMB0GA1UdJQQWMBQGCCsGAQUF
+BwMCBggrBgEFBQcDATAJBgNVHRMEAjAAMB0GA1UdDgQWBBSBV/rYRZTCfq3qMIRX
+myFeEboffDAfBgNVHSMEGDAWgBQ5OmjF+MTvDzLT67EOXBlYwyYR2zAKBggqgRzP
+VQGDdQNIADBFAiEAr1o+4um9/FwOZ7yGI5RqA/40gnH04ju53BUnic8v4KoCIE4T
+naXO8FcCcEo1LHtdky2FXpD70pdZVD4gHXqBKeUh
+-----END CERTIFICATE-----

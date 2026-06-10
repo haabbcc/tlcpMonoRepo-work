@@ -1,0 +1,23 @@
+# Provider 配置模板；build-all.sh 会根据 TLCP_ROOT 生成本文件的最终版 openssl-providers.cnf
+config_diagnostics = 0
+
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+
+[provider_sect]
+default = default_sect
+pqmagic = pqmagic_sect
+aigis_enc = aigis_enc_sect
+
+[default_sect]
+activate = 1
+
+[pqmagic_sect]
+module = @TLCP_ROOT@/providers/pqmagic-algorithms/build/pqmagic.so
+activate = 1
+
+[aigis_enc_sect]
+module = @TLCP_ROOT@/providers/ntls-aigis/build/aigis_enc.so
+activate = 1

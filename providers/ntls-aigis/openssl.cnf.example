@@ -1,0 +1,12 @@
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+
+[provider_sect]
+aigis_enc = aigis_enc_sect
+
+[aigis_enc_sect]
+activate = 1
+# 构建后路径见 env.sh 中的 AIGIS_ENC_PROVIDER
+module = @TLCP_ROOT@/providers/ntls-aigis/build/aigis_enc.so

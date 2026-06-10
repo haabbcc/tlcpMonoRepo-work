@@ -1,0 +1,7 @@
+本目录为 tlcpMonoRepo 中的 Tongsuo 源码（含 NTLS/PQC 扩展）。
+
+构建说明见 docs/TLCP-PQC-BUILD-GUIDE.md。
+
+首次构建：
+  ./Configure linux-x86_64 enable-ntls
+  make -j$(nproc)
