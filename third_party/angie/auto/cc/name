@@ -1,0 +1,85 @@
+
+# Copyright (C) 2024 Web Server LLC
+# Copyright (C) Igor Sysoev
+# Copyright (C) Nginx, Inc.
+
+
+if check_cache "compiler name" "cc"; then
+    return
+fi
+
+if [ "$CC" = cl ]; then
+    NGX_CC_NAME=msvc
+    echo " + using Microsoft Visual C++ compiler"
+
+    NGX_CC_VER=`$NGX_WINE $CC 2>&1 \
+                | grep 'C/C++.* [0-9][0-9]*\.[0-9]' 2>&1 \
+                | sed -e 's/^.* \([0-9][0-9]*\.[0-9].*\)/\1/'`
+    echo " + cl version: $NGX_CC_VER"
+
+    have=NGX_COMPILER value="\"cl $NGX_CC_VER\"" . auto/define
+
+elif [ "$CC" = wcl386 ]; then
+    NGX_CC_NAME=owc
+    echo " + using Open Watcom C compiler"
+
+elif [ "$CC" = bcc32 ]; then
+    NGX_CC_NAME=bcc
+    echo " + using Borland C++ compiler"
+
+elif `$CC -V 2>&1 | grep '^Intel(R) C' >/dev/null 2>&1`; then
+    NGX_CC_NAME=icc
+    echo " + using Intel C++ compiler"
+
+    NGX_CC_VER=`$CC -V 2>&1 \
+                | sed -n -e 's/^.* Version \([^ ]*\) *Build.*$/\1/p'`
+    echo " + icc version: $NGX_CC_VER"
+
+    have=NGX_COMPILER value="\"Intel C Compiler $NGX_CC_VER\"" . auto/define
+
+elif `$CC -v 2>&1 | grep 'gcc version' >/dev/null 2>&1`; then
+    NGX_CC_NAME=gcc
+    echo " + using GNU C compiler"
+
+    . auto/cc/gcc.version
+
+elif `$CC -v 2>&1 | grep 'clang version' >/dev/null 2>&1`; then
+    NGX_CC_NAME=clang
+    echo " + using Clang C compiler"
+
+    . auto/cc/clang.version
+
+elif `$CC -v 2>&1 | grep 'LLVM version' >/dev/null 2>&1`; then
+    NGX_CC_NAME=clang
+    echo " + using Clang C compiler"
+
+    . auto/cc/clang.version
+
+elif `$CC -V 2>&1 | grep 'Sun C' >/dev/null 2>&1`; then
+    NGX_CC_NAME=sunc
+    echo " + using Sun C compiler"
+
+    NGX_CC_VER=`$CC -V 2>&1 | sed -n -e 's/^.* Sun C \(.*\)/\1/p'`
+    echo " + Sun C version: $NGX_CC_VER"
+
+    have=NGX_COMPILER value="\"Sun C $NGX_CC_VER\"" . auto/define
+
+elif `$CC -V 2>&1 | grep '^aCC: ' >/dev/null 2>&1`; then
+    NGX_CC_NAME=acc
+    echo " + using HP aC++ compiler"
+
+else
+    NGX_CC_NAME=unknown
+
+fi
+
+if [ $NGX_FEATURE_CACHE = NO ]; then
+    return
+fi
+
+cache_output_start
+
+echo "ngx_found=yes"
+echo "NGX_CC_NAME=$NGX_CC_NAME"
+
+cache_output_end

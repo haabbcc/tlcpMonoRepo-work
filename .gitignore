@@ -29,7 +29,6 @@ config/openssl-providers.cnf
 # Local experiment outputs
 angie-install/
 angie-work/
-third_party/
 .wsl/
 
 # Temporary files

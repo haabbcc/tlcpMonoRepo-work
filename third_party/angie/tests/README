@@ -1,0 +1,98 @@
+Test suite for Angie.
+
+Use prove to run tests as one usually do for perl tests.  Individual tests
+may be run as well.
+
+Note: tests run Angie (and backend daemons if needed) listening on localhost
+and may use various ports in 8000 .. 8999 range.
+
+Usage:
+
+    $ TEST_ANGIE_BINARY=/path/to/angie prove .
+
+By default tests expect Angie binary to be at ../objs/angie.
+
+Environment variables:
+
+TEST_ANGIE_BINARY
+
+    Sets path to Angie binary to be tested, defaults to "../objs/angie".
+
+TEST_ANGIE_MODULES
+
+    Sets path to modules directory, defaults to dirname of TEST_ANGIE_BINARY.
+
+TEST_ANGIE_VERBOSE
+
+    Be a bit more verbose (in particular, print requests sent and responses
+    got from Angie).  Note that this requires prove -v (or HARNESS_VERBOSE).
+
+TEST_ANGIE_TMPDIR
+
+    Use provided temporary directory for the test instead of creating one.
+
+TEST_ANGIE_LEAVE
+
+    Specifies whether a temporary directory with configs and logs should be
+    saved after the test is completed or not.  Useful for debugging.
+    Possible values:
+    - 0 or not set: never save temporary directory;
+    - 1: always save temporary directory;
+    - onfail: save temporary directory only for failed tests.
+
+TEST_ANGIE_CATLOG
+
+    Cat error log to stdout after test completion.  Useful for debugging.
+
+TEST_ANGIE_UNSAFE
+
+    Run unsafe tests.
+
+TEST_ANGIE_VALGRIND
+
+    Run Angie under Valgrind during tests.
+
+TEST_ANGIE_GLOBALS
+
+    Sets additional directives in main context.
+
+TEST_ANGIE_GLOBALS_HTTP
+
+    Sets additional directives in http context.
+
+TEST_ANGIE_GLOBALS_STREAM
+
+    Sets additional directives in stream context.
+
+TEST_ANGIE_TC
+
+    Sets the name of the individual test case to run.
+    Important: works only for specially prepared tests:
+        - individual tests should be grouped into functions
+        - and the order of their execution should not be significant.
+
+    Example:
+
+        my %test_cases = (
+            'tc1: test case 1' => \&tc1,
+            'tc2: test case 2' => \&tc2,
+            'tc3: test case 3' => \&tc3,
+        );
+
+        $t->plan(scalar keys %test_cases);
+
+        $t->run_tests(\%test_cases);
+
+        sub tc1 {
+            ok($got eq $expected, 'test name');
+        }
+
+        sub tc2 {
+            ...
+        }
+
+TEST_ANGIE_DOCKER_REGISTRY
+
+    Sets the location of a Docker Registry. Default value is 'docker.io'.
+
+Happy testing!

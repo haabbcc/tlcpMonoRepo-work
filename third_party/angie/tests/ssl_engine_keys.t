@@ -1,0 +1,254 @@
+#!/usr/bin/perl
+
+# (C) 2024 Web Server LLC
+# (C) Maxim Dounin
+# (C) Sergey Kandaurov
+# (C) Nginx, Inc.
+
+# Tests for http ssl module, loading "engine:..." keys.
+
+###############################################################################
+
+use warnings;
+use strict;
+
+use Test::More;
+
+BEGIN { use FindBin; chdir($FindBin::Bin); }
+
+use lib 'lib';
+use Test::Nginx;
+
+###############################################################################
+
+select STDERR; $| = 1;
+select STDOUT; $| = 1;
+
+plan(skip_all => 'may not work')
+	unless $ENV{TEST_ANGIE_UNSAFE};
+
+my $t = Test::Nginx->new()
+	->has(qw/http proxy http_ssl/)
+	->has_daemon('openssl')
+	->has_daemon('softhsm2-util');
+
+plan(skip_all => 'unsupported OpenSSL version')
+	if $t->{_configure_args} =~ /^built with OpenSSL 3\.2\.1-dev\s*$/m
+		|| $t->{_configure_args} =~ /running with OpenSSL 3\.2\.1-dev\s*\)$/m;
+
+plan(skip_all => 'no engine support since OpenSSL 4.0.0')
+	if $t->has_feature('openssl:4.0.0');
+
+# pkcs11-tool is part of the opensc package
+# it has been removed from some newer systems
+# but we'll still try to use it if it's available
+my $use_pkcs11_tool = ($t->has_daemon('pkcs11-tool')) ? 1 : 0;
+
+$t->write_file_expand('nginx.conf', <<'EOF');
+
+%%TEST_GLOBALS%%
+
+daemon off;
+
+events {
+}
+
+http {
+    %%TEST_GLOBALS_HTTP%%
+
+    server {
+        listen       127.0.0.1:8081 ssl;
+        listen       127.0.0.1:8080;
+        server_name  localhost;
+
+        ssl_certificate localhost.crt;
+        ssl_certificate_key engine:pkcs11:id_00;
+
+        location / {
+            # index index.html by default
+        }
+
+        location /proxy {
+            proxy_pass https://127.0.0.1:8081/;
+        }
+
+        location /var {
+            proxy_pass https://127.0.0.1:8082/;
+            proxy_ssl_name localhost;
+            proxy_ssl_server_name on;
+        }
+    }
+
+    server {
+        listen       127.0.0.1:8082 ssl;
+        server_name  localhost;
+
+        ssl_certificate $ssl_server_name.crt;
+        ssl_certificate_key engine:pkcs11:id_00;
+
+        location / {
+            # index index.html by default
+        }
+    }
+}
+
+EOF
+
+# Create a SoftHSM token with a secret key, and configure OpenSSL
+# to access it using the pkcs11 engine, see detailed example
+# posted by Dmitrii Pichulin here:
+#
+# http://mailman.nginx.org/pipermail/nginx-devel/2014-October/006151.html
+#
+# Note that library paths vary on different systems,
+# and may need to be adjusted. We try to detect some known ones.
+#
+# Still, detected libraries might not match OpenSSL library used when
+# building nginx, or the "openssl" tool in path, so everything will fail.
+# As such, this test is marked unsafe.
+
+# Libraries on various systems: FreeBSD, Alpine, Ubuntu
+
+my ($engine) = grep { -e $_ } qw!
+	/usr/local/lib/engines/pkcs11.so
+	/usr/lib/engines-3/pkcs11.so
+	/usr/lib/x86_64-linux-gnu/engines-3/pkcs11.so
+	/usr/lib/aarch64-linux-gnu/engines-3/pkcs11.so
+	/usr/lib/x86_64-linux-gnu/engines-1.1/pkcs11.so
+	/usr/lib/aarch64-linux-gnu/engines-1.1/pkcs11.so
+	/usr/lib64/engines-1.1/pkcs11.so
+	/usr/lib64/engines-3/pkcs11.so
+	/usr/lib64/openssl/engines-1.1/pkcs11.so
+!;
+
+plan(skip_all => 'no libp11 pkcs11 engine') unless $engine;
+
+my $libsofthsm2_path;
+my @so_paths = (
+	'/usr/lib/softhsm',		# Debian-based
+	'/usr/lib64/softhsm/',		# rosachrome, rosafresh
+	'/usr/local/lib/softhsm',	# FreeBSD
+	'/opt/local/lib/softhsm',	# MacPorts
+	'/lib64',			# RHEL-based
+	'/usr/lib/x86_64-linux-gnu/softhsm', # Ubuntu
+	split /:/, $ENV{TEST_ANGIE_SOFTHSM} || ''
+);
+
+for my $so_path (@so_paths) {
+	$so_path .= '/libsofthsm2.so';
+	if (-e $so_path) {
+		$libsofthsm2_path = $so_path;
+		last;
+	}
+};
+
+plan(skip_all => "libsofthsm2.so not found") unless $libsofthsm2_path;
+
+my $openssl_conf = <<EOF;
+openssl_conf = openssl_def
+
+[openssl_def]
+engines = engine_section
+
+[engine_section]
+pkcs11 = pkcs11_section
+
+[pkcs11_section]
+engine_id = pkcs11
+dynamic_path = $engine
+MODULE_PATH = $libsofthsm2_path
+init = 1
+PIN = 1234
+
+[ req ]
+default_bits = 2048
+encrypt_key = no
+distinguished_name = req_distinguished_name
+[ req_distinguished_name ]
+EOF
+
+$t->write_file('openssl.conf', $openssl_conf);
+
+my $d = $t->testdir();
+
+$t->write_file('softhsm2.conf', <<EOF);
+directories.tokendir = $d/tokens/
+objectstore.backend = file
+EOF
+
+mkdir($d . '/tokens');
+
+$ENV{SOFTHSM2_CONF} = "$d/softhsm2.conf";
+$ENV{OPENSSL_CONF} = "$d/openssl.conf";
+
+my $conf_paths = "SOFTHSM2_CONF=$ENV{SOFTHSM2_CONF} "
+	. "OPENSSL_CONF=$ENV{OPENSSL_CONF}";
+foreach my $name ('localhost') {
+	my $cmd = 'softhsm2-util --init-token --slot 0 --label NginxZero '
+		. '--pin 1234 --so-pin 1234 '
+		. ">>$d/openssl.out 2>&1";
+
+	note("$conf_paths $cmd");
+
+	system($cmd) == 0
+		or die "Can't initialize softhsm token: $!\n";
+
+	if ($use_pkcs11_tool) {
+		$cmd = "pkcs11-tool --module=$libsofthsm2_path "
+			. '--token-label NginxZero --pin 1234 --login '
+			. '--keypairgen --id 0 --label nx_key_0 --key-type rsa:2048 '
+			. ">>$d/openssl.out 2>&1";
+
+		note("$conf_paths $cmd");
+
+		system($cmd) == 0
+			or die "Can't generate pkcs11 keypair: $!\n";;
+
+	} else {
+		$cmd = "openssl genrsa -out $d/$name.key 2048 "
+			. ">>$d/openssl.out 2>&1";
+
+		note("$conf_paths $cmd");
+
+		system($cmd) == 0
+			or die "Can't create private key: $!\n";
+
+		$cmd = "softhsm2-util --import $d/$name.key --id 00 --label nx_key_0 "
+			. '--token NginxZero --pin 1234 '
+			. ">>$d/openssl.out 2>&1";
+
+		note("$conf_paths $cmd");
+
+		system($cmd) == 0
+			or die "Can't import private key: $!\n";
+	}
+
+	$cmd = 'openssl req -x509 -new '
+		. "-subj /CN=$name/ -out $d/$name.crt -text "
+		. "-engine pkcs11 -keyform engine -key id_00 "
+		. ">>$d/openssl.out 2>&1";
+
+	note("$conf_paths $cmd");
+
+	system($cmd) == 0
+		or plan(skip_all => "missing engine");
+}
+
+if ($t->has_module('LibreSSL|BoringSSL|AWS-LC')) {
+	$t->try_run('loading "engine:..." certificate keys is not supported');
+} elsif ($t->{_configure_args} =~ /tongsuo/
+	|| $t->has_module('OpenSSL [.0-9]+\+quic')) {
+	$t->try_run('no such engine:id=pkcs11');
+} else {
+	$t->run();
+}
+
+$t->plan(2);
+$t->write_file('index.html', '');
+
+###############################################################################
+
+like(http_get('/proxy'), qr/200 OK/, 'ssl engine keys');
+like(http_get('/var'), qr/200 OK/, 'ssl_certificate with variable');
+
+###############################################################################
