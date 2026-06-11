@@ -1,7 +1,10 @@
-本目录为 tlcpMonoRepo 中的 Tongsuo 源码（含 NTLS/PQC 扩展）。
+This directory contains the Tongsuo source tree used by tlcpMonoRepo.
 
-构建说明见 docs/TLCP-PQC-BUILD-GUIDE.md。
+Build the complete repository from the project root:
 
-首次构建：
-  ./Configure linux-x86_64 enable-ntls
-  make -j$(nproc)
+  ./build-all.sh
+  source ./env.sh
+
+Detailed build instructions are in:
+
+  docs/01_BUILD_TLCP_MONOREPO.md
