@@ -1,66 +1,141 @@
-# 抗量子 TLCP 单仓交付（tlcpMonoRepo）
+# tlcpMonoRepo
 
-本仓库包含从零构建并验证**抗量子 TLCP（国密双证 + 后量子算法）**所需的源码、Provider、测试证书与联调脚本。
+`tlcpMonoRepo` 是一个用于构建和验证 TLCP/NTLS + 国密双证书 + PQC 混合握手的单仓库工程。
 
-当前验收范围：**certs/1（裸 PQC 双证）** 与 **certs/loose（SM2 双证）**。
+仓库当前包含以下几类内容：
 
-## 仓库结构
+- `tongsuo/`：带 NTLS/TLCP 能力的 Tongsuo 源码
+- `pqmagic/`：PQC 算法库
+- `providers/`：为证书解析和 KEM 注册提供的 OpenSSL provider
+- `certs/`：测试证书与私钥
+- `scripts/`：握手联调与 Angie 实验脚本
+- `demo/`：基于 Tongsuo 接口的最小 client/server 示例
+- `docs/`：构建、实验与接口差异文档
+- `third_party/angie/`：整理后的 Angie 源码
 
-```
+## 目录结构
+
+```text
 tlcpMonoRepo/
-├── build-all.sh          # 一键构建
-├── env.sh                # 环境变量
-├── tongsuo/              # Tongsuo 源码（含 NTLS/PQC 扩展）
-├── pqmagic/              # PQMagic 后量子算法库
-├── providers/
-│   ├── pqmagic-algorithms/   # 裸 PQC SPKI（certs/1）
-│   └── ntls-aigis/           # NTLS 用 Aigis-Enc-2 KEM
+├── build-all.sh
+├── env.sh
 ├── certs/
-│   ├── 1/                # 裸 PQC 双证（ML-DSA 签名 + ML-KEM 加密）
-│   └── loose/            # SM2 双证（ECC/ECDHE-Kyber 套件）
-├── scripts/              # TLCP 联调脚本
-├── config/               # Provider 配置模板
-└── docs/
-    └── TLCP-PQC-BUILD-GUIDE.md
+│   ├── 1/
+│   └── loose/
+├── demo/
+├── docs/
+├── pqmagic/
+├── providers/
+│   ├── ntls-aigis/
+│   └── pqmagic-algorithms/
+├── scripts/
+├── third_party/
+│   └── angie/
+└── tongsuo/
 ```
+
+## 支持的主要验证场景
+
+1. `certs/1`：PQC 双证书
+   - 签名证书：ML-DSA
+   - 加密证书：ML-KEM
+   - 典型套件：`KYBER-DILITHIUM-SM4-GCM-SM3`
+
+2. `certs/loose`：SM2 双证书
+   - 签名证书：SM2 sign
+   - 加密证书：SM2 enc
+   - 典型套件：
+     - `ECC-KYBER-SM4-GCM-SM3`
+     - `ECDHE-KYBER-SM4-GCM-SM3`
+
+3. Angie + Tongsuo + TLCP-PQC
+   - Angie 作为 NTLS 服务端
+   - Tongsuo `s_client` 作为验证客户端
+   - 可验证双证书 PQC/国密混合握手
 
 ## 快速开始
 
+### 1. 安装依赖
+
+以 Ubuntu 为例：
+
 ```bash
-git clone https://gitcode.com/stella_moment/tlcpMonoRepo.git
-cd tlcpMonoRepo
+sudo apt update
+sudo apt install -y build-essential cmake perl git
+```
+
+### 2. 构建基础组件
+
+```bash
+git clone https://github.com/haabbcc/tlcpMonoRepo-work.git
+cd tlcpMonoRepo-work
 
 ./build-all.sh
 source ./env.sh
+```
 
+### 3. 检查构建结果
+
+```bash
 ${OPENSSL} version -a
 ${OPENSSL} list -providers
 ```
 
-## TLCP 联调
+预期至少能看到：
 
-**certs/1 — KYBER-DILITHIUM-SM4-GCM-SM3：**
+- `default`
+- `pqmagic`
+- `aigis_enc`
+
+## 关键脚本
+
+### TLCP 联调
 
 ```bash
-# 终端 1
+# certs/1
+./scripts/Kyber_Dilithium_SM4_GCM_SM3/server1.sh
 ./scripts/Kyber_Dilithium_SM4_GCM_SM3/client1.sh
 
-# 终端 2
-./scripts/Kyber_Dilithium_SM4_GCM_SM3/server1.sh
+# certs/loose - ECC
+./scripts/ECC_Kyber_SM4_GCM_SM3/server.sh
+./scripts/ECC_Kyber_SM4_GCM_SM3/client.sh
+
+# certs/loose - ECDHE
+./scripts/ECDHE_Kyber_SM4_GCM_SM3/server.sh
+./scripts/ECDHE_Kyber_SM4_GCM_SM3/client.sh
 ```
 
-**certs/loose — SM2 + Kyber：**
+### Angie 实验
 
 ```bash
-# 终端 1
-./scripts/ECC_Kyber_SM4_GCM_SM3/server.sh
-
-# 终端 2
-./scripts/ECC_Kyber_SM4_GCM_SM3/client.sh
+bash scripts/Angie_TLCP_PQC/build-stack.sh
+bash scripts/Angie_TLCP_PQC/render-conf.sh
+bash scripts/Angie_TLCP_PQC/start-angie.sh
+bash scripts/Angie_TLCP_PQC/test-client.sh
 ```
 
-详细说明见 [docs/TLCP-PQC-BUILD-GUIDE.md](docs/TLCP-PQC-BUILD-GUIDE.md)。
+## demo 说明
 
-## 许可证
+`demo/demo/client.c` 和 `demo/demo/server.c` 已改为使用 Tongsuo 的 NTLS 双证书接口：
 
-各子目录沿用上游项目原有许可证。测试证书私钥**仅用于开发联调**，请勿用于生产环境。
+- `NTLS_client_method()`
+- `NTLS_server_method()`
+- `SSL_CTX_enable_ntls()`
+- `SSL_CTX_use_sign_certificate_file()`
+- `SSL_CTX_use_sign_PrivateKey_file()`
+- `SSL_CTX_use_enc_certificate_file()`
+- `SSL_CTX_use_enc_PrivateKey_file()`
+
+可用于最小化验证 `ECC-KYBER-SM4-GCM-SM3` 双证书握手。
+
+## 文档
+
+- [构建指南](C:/Users/14050/Desktop/dpdk/tlcpMonoRepo/tlcpMonoRepo-main/docs/TLCP-PQC-BUILD-GUIDE.md)
+- [Angie 实验说明](C:/Users/14050/Desktop/dpdk/tlcpMonoRepo/tlcpMonoRepo-main/docs/ANGIE_TLCP_PQC_EXPERIMENT.md)
+- [TLCP-PQC 与 demo 接口差异](C:/Users/14050/Desktop/dpdk/tlcpMonoRepo/tlcpMonoRepo-main/docs/tlcp_pqc_demo_protocol_api_diff.md)
+
+## 备注
+
+- `certs/` 中的证书和私钥仅用于开发与联调。
+- `third_party/angie/` 当前保存的是可提交源码树，不包含内部 `.git` 和构建产物。
+- 远端仓库曾因 `.gitignore` 误配置漏掉部分 `tongsuo/test` 源文件，现已修复。

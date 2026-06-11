@@ -1,193 +1,246 @@
-# 抗量子 TLCP 从零构建指南
+# TLCP-PQC 构建指南
 
-本文档说明如何在本仓库中从零编译全部组件，并使用 **certs/1** 与 **SM2（certs/loose）** 完成抗量子 TLCP 验收。
+本文档说明如何在 Linux/WSL 环境中构建 `tlcpMonoRepo`，并完成基础的 TLCP/NTLS + PQC 联调验证。
 
----
+## 1. 目标
 
-## 1. 方案概述
+本项目的目标是提供一套可重复的实验环境，用于验证：
 
-### 1.1 目标
-
-在 GB/T 38636-2020 TLCP（国密双证）框架下，集成后量子密码（PQC）算法，实现抗量子传输层密码协议联调。
-
-### 1.2 架构
-
-```
-┌─────────────────────────────────────────────────────────┐
-│         s_server / s_client（Tongsuo apps/openssl）      │
-└────────────────────────┬────────────────────────────────┘
-                         │ NTLS 状态机
-┌────────────────────────▼────────────────────────────────┐
-│  密码套件：                                               │
-│  • KYBER-DILITHIUM-SM4-GCM-SM3  （certs/1）              │
-│  • ECC-KYBER-SM4-GCM-SM3        （certs/loose，SM2）     │
-│  • ECDHE-KYBER-SM4-GCM-SM3      （certs/loose，SM2）     │
-└────────────────────────┬────────────────────────────────┘
-                         │
-        ┌────────────────┴────────────────┐
-        ▼                                 ▼
-  pqmagic-algorithms                  ntls-aigis
-  （certs/1 证书解析）                 （Aigis-Enc KEM）
-        │                                 │
-        └────────────────┬────────────────┘
-                         ▼
-                    PQMagic 算法库
-                         ▼
-                    Tongsuo libcrypto/libssl
-```
-
-### 1.3 组件清单
-
-| 目录 | 作用 |
-|------|------|
-| `tongsuo/` | 修改版 Tongsuo，启用 NTLS，扩展 Kyber/Dilithium/Aigis 密码套件 |
-| `pqmagic/` | 后量子算法库（ML-DSA、ML-KEM、Aigis-Enc 等） |
-| `providers/pqmagic-algorithms/` | 解析 certs/1 裸 PQC 公钥 SPKI |
-| `providers/ntls-aigis/` | 注册 Aigis-Enc-2 KEM，供 NTLS 临时密钥交换 |
-| `certs/1/` | 裸 PQC 双证（ML-DSA 签名 + ML-KEM 加密） |
-| `certs/loose/` | SM2 双证，用于 ECC/ECDHE-Kyber 套件 |
-| `scripts/` | TLCP 联调脚本 |
-
----
+- TLCP/NTLS 协议栈
+- 国密双证书
+- PQC provider
+- PQC/国密混合密钥交换
+- Tongsuo `s_client` / `s_server`
+- demo 程序与 Angie 服务端联调
 
 ## 2. 环境要求
 
-| 项目 | 要求 |
-|------|------|
-| 操作系统 | Linux x86_64 |
-| 编译器 | gcc |
-| 构建工具 | make、cmake ≥ 3.10、perl |
+建议环境：
+
+- Ubuntu / Debian / WSL2
+- `gcc`
+- `make`
+- `cmake`
+- `perl`
+- `git`
+
+安装命令：
 
 ```bash
 sudo apt update
 sudo apt install -y build-essential cmake perl git
 ```
 
----
-
-## 3. 获取源码
+## 3. 仓库准备
 
 ```bash
-git clone https://gitcode.com/stella_moment/tlcpMonoRepo.git
-cd tlcpMonoRepo
+git clone https://github.com/haabbcc/tlcpMonoRepo-work.git
+cd tlcpMonoRepo-work
 ```
 
----
+如果之前拉取过旧版本，建议先确认分支和提交：
 
-## 4. 构建
+```bash
+git checkout main
+git pull
+git rev-parse HEAD
+```
 
-### 4.1 一键构建
+## 4. 一键构建
 
 ```bash
 ./build-all.sh
 ```
 
-构建顺序：PQMagic → Tongsuo → pqmagic-algorithms provider → ntls-aigis provider。
+`build-all.sh` 会依次完成：
 
-非 x86_64 平台：
+1. 构建 `pqmagic`
+2. 构建 `tongsuo`
+3. 构建 `providers/pqmagic-algorithms`
+4. 构建 `providers/ntls-aigis`
+5. 生成 `config/openssl-providers.cnf`
+
+默认 Tongsuo 配置为：
+
+```bash
+linux-x86_64 enable-ntls
+```
+
+如果是其他架构，可自行覆盖：
 
 ```bash
 TONGSUO_CONFIGURE="linux-aarch64 enable-ntls" ./build-all.sh
 ```
 
-### 4.2 加载环境
+## 5. 加载运行环境
 
 ```bash
 source ./env.sh
 ```
 
----
+`env.sh` 会设置：
 
-## 5. 构建验收
+- `TLCP_ROOT`
+- `TONGSUO_ROOT`
+- `OPENSSL`
+- `PQMAGIC_PREFIX`
+- `LD_LIBRARY_PATH`
+- `OPENSSL_MODULES`
+- `OPENSSL_CONF`
+
+## 6. 构建后检查
+
+### 6.1 OpenSSL/Tongsuo
 
 ```bash
-source ./env.sh
-
 ${OPENSSL} version -a
-${OPENSSL} list -providers
-# 应看到 default、pqmagic、aigis_enc
-
-${OPENSSL} x509 -in certs/1/user_sig.crt -text -noout
-# Public Key 应正常显示
 ```
 
----
-
-## 6. TLCP 联调
-
-### 6.1 密码套件与证书对照
-
-| 脚本 | 密码套件 | 证书 |
-|------|---------|------|
-| `Kyber_Dilithium_SM4_GCM_SM3/client1.sh` + `server1.sh` | KYBER-DILITHIUM-SM4-GCM-SM3 | certs/1 |
-| `ECC_Kyber_SM4_GCM_SM3/` | ECC-KYBER-SM4-GCM-SM3 | certs/loose（SM2） |
-| `ECDHE_Kyber_SM4_GCM_SM3/` | ECDHE-KYBER-SM4-GCM-SM3 | certs/loose（SM2） |
-
-### 6.2 certs/1 — KYBER-DILITHIUM
-
-**终端 1（服务端）：**
+### 6.2 Provider
 
 ```bash
-./scripts/Kyber_Dilithium_SM4_GCM_SM3/client1.sh
+${OPENSSL} list -providers
 ```
 
-**终端 2（客户端）：**
+预期至少包含：
+
+- `default`
+- `pqmagic`
+- `aigis_enc`
+
+### 6.3 证书解析
+
+```bash
+${OPENSSL} x509 -in certs/1/user_sig.crt -text -noout
+${OPENSSL} x509 -in certs/loose/sign_sm2.crt -text -noout
+```
+
+如果 `certs/1` 证书能正确解析，通常说明 `pqmagic` provider 已生效。
+
+## 7. TLCP 联调脚本
+
+### 7.1 `certs/1`：PQC 双证书
+
+服务端：
 
 ```bash
 ./scripts/Kyber_Dilithium_SM4_GCM_SM3/server1.sh
 ```
 
-成功标志：客户端 `Verify return code: 0 (ok)`，Cipher 为 `KYBER-DILITHIUM-SM4-GCM-SM3`。
-
-### 6.3 certs/loose — SM2 + Kyber
+客户端：
 
 ```bash
-# 终端 1
-./scripts/ECC_Kyber_SM4_GCM_SM3/server.sh
+./scripts/Kyber_Dilithium_SM4_GCM_SM3/client1.sh
+```
 
-# 终端 2
+目标套件：
+
+```text
+KYBER-DILITHIUM-SM4-GCM-SM3
+```
+
+### 7.2 `certs/loose`：SM2 双证书
+
+ECC 版本：
+
+```bash
+./scripts/ECC_Kyber_SM4_GCM_SM3/server.sh
 ./scripts/ECC_Kyber_SM4_GCM_SM3/client.sh
 ```
 
-ECDHE 版本将目录名中的 `ECC_Kyber` 换为 `ECDHE_Kyber` 即可。
+ECDHE 版本：
 
----
+```bash
+./scripts/ECDHE_Kyber_SM4_GCM_SM3/server.sh
+./scripts/ECDHE_Kyber_SM4_GCM_SM3/client.sh
+```
 
-## 7. 测试证书说明
+目标套件：
 
-| 目录 | 类型 | 用途 |
-|------|------|------|
-| `certs/1/` | 裸 PQC 双证 | KYBER-DILITHIUM 套件 |
-| `certs/loose/` | SM2 双证 | ECC/ECDHE-Kyber 套件 |
+```text
+ECC-KYBER-SM4-GCM-SM3
+ECDHE-KYBER-SM4-GCM-SM3
+```
 
-私钥仅用于测试联调，禁止用于生产。
+## 8. demo 构建
 
----
+进入 demo 目录：
 
-## 8. 常见问题
+```bash
+cd demo/demo
+./mk.sh
+```
 
-**`libpqmagic_std not found`** — 重新运行 `./build-all.sh`。
+当前 `mk.sh` 默认链接仓库里的：
 
-**`apps/openssl: No such file`** — Tongsuo 未编译，进入 `tongsuo/` 执行 `./Configure linux-x86_64 enable-ntls && make`。
+- `tongsuo/include`
+- `tongsuo/`
 
-**证书 `Unable to load Public Key`** — 确认已 `source env.sh`，且 `list -providers` 包含 pqmagic。
+生成：
 
-**TLCP 握手失败** — 检查双证路径、密码套件字符串、`LD_LIBRARY_PATH`。
+- `server`
+- `client`
 
----
+### 8.1 运行 demo
 
-## 9. 审查验收清单
+服务端：
 
-- [ ] `./build-all.sh` 无报错完成
-- [ ] `${OPENSSL} list -providers` 显示 default、pqmagic、aigis_enc
-- [ ] `certs/1/user_sig.crt` 可 `x509 -text` 正常解析
-- [ ] KYBER-DILITHIUM TLCP 握手成功（Verify return code: 0）
-- [ ] （可选）ECC-KYBER 或 ECDHE-KYBER 握手成功
+```bash
+./server
+```
 
----
+客户端：
 
-## 10. 参考
+```bash
+./client
+```
 
-- GB/T 38636-2020 TLCP
-- Tongsuo：https://github.com/Tongsuo-Project/Tongsuo
-- PQMagic：https://pqcrypto.dev/
+demo 目前已经切换到 NTLS 双证书接口，目标套件是：
+
+```text
+ECC-KYBER-SM4-GCM-SM3
+```
+
+## 9. 常见问题
+
+### 9.1 `Makefile wasn't produced`
+
+如果 `./Configure` 报某些 `tongsuo/test/*.c` 缺失，优先检查：
+
+```bash
+git pull
+git rev-parse HEAD
+```
+
+该问题曾由远端仓库中 `tongsuo/test` 源文件缺失引起，现已修复。
+
+### 9.2 `apps/openssl: No such file`
+
+说明 `tongsuo` 尚未成功编译。
+
+### 9.3 `Unable to load Public Key`
+
+通常表示 provider 环境未加载：
+
+```bash
+source ./env.sh
+${OPENSSL} list -providers
+```
+
+### 9.4 握手失败
+
+重点检查：
+
+- 双证书路径是否正确
+- `OPENSSL_CONF` 是否正确
+- `OPENSSL_MODULES` 是否正确
+- `LD_LIBRARY_PATH` 是否正确
+- 客户端与服务端 cipher 是否一致
+
+## 10. 建议验收项
+
+- `./build-all.sh` 成功完成
+- `${OPENSSL} list -providers` 正常
+- `certs/1` 与 `certs/loose` 证书可解析
+- `scripts/` 中至少一组 TLCP 握手成功
+- `demo/demo/server` 与 `demo/demo/client` 握手成功
