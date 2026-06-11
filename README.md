@@ -138,9 +138,9 @@ bash scripts/Angie_TLCP_PQC/test-client.sh
 
 ## 文档
 
-- [构建指南](C:/Users/14050/Desktop/dpdk/tlcpMonoRepo/tlcpMonoRepo-main/docs/TLCP-PQC-BUILD-GUIDE.md)
-- [Angie 实验说明](C:/Users/14050/Desktop/dpdk/tlcpMonoRepo/tlcpMonoRepo-main/docs/ANGIE_TLCP_PQC_EXPERIMENT.md)
-- [TLCP-PQC 与 demo 接口差异](C:/Users/14050/Desktop/dpdk/tlcpMonoRepo/tlcpMonoRepo-main/docs/tlcp_pqc_demo_protocol_api_diff.md)
+- [构建指南](docs/TLCP-PQC-BUILD-GUIDE.md)
+- [Angie 实验说明](docs/ANGIE_TLCP_PQC_EXPERIMENT.md)
+- [TLCP-PQC 与 demo 接口差异](docs/tlcp_pqc_demo_protocol_api_diff.md)
 
 ## 备注
 
