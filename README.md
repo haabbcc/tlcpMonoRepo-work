@@ -116,7 +116,7 @@ bash scripts/Angie_TLCP_PQC/test-client.sh
 
 ## demo 说明
 
-`demo/demo/client.c` 和 `demo/demo/server.c` 已改为使用 Tongsuo 的 NTLS 双证书接口：
+`demo/demo/client.c` 和 `demo/demo/server.c` 使用 Tongsuo 的 NTLS 双证书接口：
 
 - `NTLS_client_method()`
 - `NTLS_server_method()`
@@ -128,8 +128,7 @@ bash scripts/Angie_TLCP_PQC/test-client.sh
 
 可用于最小化验证 `ECC-KYBER-SM4-GCM-SM3` 双证书握手。
 
-普通 TLS 接口测试使用另一组文件：
-
+`demo/demo/server_tls.c`和- `demo/demo/client_tls.c`使用 Tongsuo 的 TLS 接口：
 - `demo/demo/server_tls.c`
 - `demo/demo/client_tls.c`
 - `demo/demo/test_tls.sh`
@@ -140,7 +139,6 @@ bash scripts/Angie_TLCP_PQC/test-client.sh
 
 - [构建指南](docs/TLCP-PQC-BUILD-GUIDE.md)
 - [Angie 实验说明](docs/ANGIE_TLCP_PQC_EXPERIMENT.md)
-- [TLCP-PQC 与 demo 接口差异](docs/tlcp_pqc_demo_protocol_api_diff.md)
 
 ## 备注
 
