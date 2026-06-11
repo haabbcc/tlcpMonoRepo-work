@@ -183,3 +183,15 @@ TLS_AES_256_GCM_SHA384
 | 套件设置 | `ECC-KYBER-SM4-GCM-SM3` | TLS 默认协商 |
 | 测试端口 | `4433` | `4443` |
 | 测试目的 | 验证国密双证书 PQC/GM NTLS 路径 | 验证标准 TLS 双向认证路径 |
+
+## 6. 不再使用的历史脚本
+
+`demo/demo` 下还保留了几个早期硬件/SDF 或本地库布局相关脚本：
+
+```text
+conf.sh
+km.sh
+load.sh
+```
+
+这些脚本不属于当前 `tlcpMonoRepo` + Tongsuo demo 流程。为避免在新机器上误用，它们已经改成保护脚本：执行时只会提示使用 `mk.sh`、`server`、`client` 或 `test_tls.sh`，不会再尝试加载旧机器上的 `/home/...` 路径，也不会再链接 `demo/demo/lib` 下的旧库。
