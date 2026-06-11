@@ -1,325 +1,171 @@
-/*
- * ++
- * FACILITY:
- *
- *      Simplest SM2 TLSv1.1 Server
- *
- * ABSTRACT:
- *
- *   This is an example of a SSL server with minimum functionality.
- *    The socket APIs are used to handle TCP/IP operations. This SSL
- *    server loads its own certificate and key, but it does not verify
- *  the certificate of the SSL client.
- *
-*/
+#include <arpa/inet.h>
+#include <errno.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <sys/select.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-//#include <winsock.h>
-//#include <WinSock2.h>
-//#pragma comment(lib,"Ws2_32.lib ")
-//#include <ws2tcpip.h>
-#include "openssl/crypto.h"
-#include "openssl/ssl.h"
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "openssl/err.h"
-#include "openssl/evp.h"
-#include "openssl/engine.h"
+#include "openssl/ssl.h"
+#include "openssl/x509.h"
 
 #define MAX_BUF_LEN 4096
-#define SERVER_CERT     "../certs/rsa2048.crt"
-#define SERVER_KEY      "../certs/rsa2048.key"
+#define TLS_SERVER_CERT "../certs/tls_server.crt"
+#define TLS_SERVER_KEY  "../certs/tls_server.key"
+#define TLS_CA_CERT     "../certs/tls_ca.crt"
+#define TLS_PORT        4443
 
-#define SERVER_CA_CERT  "../certs/CA.crt"
-
-#define SM2_SERVER_CA_PATH  "."
-#define SSL_ERROR_WANT_HSM_RESULT 10
-#define ON   1
-#define OFF  0
-
-#define RETURN_NULL(x) if ((x)==NULL) exit(1)
-#define RETURN_ERR(err,s) if ((err)==-1) { perror(s); exit(1); }
-#define RETURN_SSL(err) if ((err)==-1) { ERR_print_errors_fp(stderr); exit(1); }
-int opt = 1000;
-
-void ShowCerts(SSL * ssl)
+static void show_peer_cert(SSL *ssl)
 {
-	X509 *cert;
-	char *line;
+    X509 *cert = SSL_get_peer_certificate(ssl);
+    char *line = NULL;
 
-	cert = SSL_get_peer_certificate(ssl);
-	if (cert != NULL) {
-		printf("Certificate information:\n");
-		line = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-		printf("Certificate: %s\n", line);
-		free(line);
-		line = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-		printf("Issuer: %s\n", line);
-		free(line);
-		X509_free(cert);
-	}
-	else
-		printf("No certificate information.\n");
+    if (cert == NULL) {
+        printf("No peer certificate.\n");
+        return;
+    }
+
+    printf("Peer certificate information:\n");
+    line = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
+    printf("Subject: %s\n", line);
+    OPENSSL_free(line);
+
+    line = X509_NAME_oneline(X509_get_issuer_name(cert), NULL, 0);
+    printf("Issuer: %s\n", line);
+    OPENSSL_free(line);
+
+    X509_free(cert);
 }
 
-
-int verify_callback(int ok, X509_STORE_CTX *ctx)
+static int create_listen_socket(void)
 {
-	if (!ok) {
-		ok = 1;
-	}
+    int listen_sock;
+    int opt = 1;
+    struct sockaddr_in addr;
 
-	return (ok);
+    listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (listen_sock < 0) {
+        perror("socket");
+        exit(1);
+    }
+
+    if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        perror("setsockopt");
+        exit(1);
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(TLS_PORT);
+
+    if (bind(listen_sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        perror("bind");
+        exit(1);
+    }
+
+    if (listen(listen_sock, 5) < 0) {
+        perror("listen");
+        exit(1);
+    }
+
+    return listen_sock;
 }
 
-
-int main( )
+int main(void)
 {
-	int     err;
-	int     verify_client = OFF; /* To verify a client certificate, set ON */
+    SSL_CTX *ctx = NULL;
+    SSL *ssl = NULL;
+    const SSL_METHOD *method = NULL;
+    int listen_sock = -1;
+    int sock = -1;
+    char buf[MAX_BUF_LEN];
+    int n;
 
-	int     listen_sock;
-	int     sock;
-	struct sockaddr_in sa_serv;
-	struct sockaddr_in sa_cli;
-	size_t client_len;
-	char    *str;
-	char    buf[MAX_BUF_LEN];
+    setvbuf(stdout, NULL, _IONBF, 0);
 
-	SSL_CTX         *ctx = NULL;
-	SSL             *ssl = NULL;
-	const SSL_METHOD      *meth;
+    SSL_library_init();
+    SSL_load_error_strings();
 
-	short int       s_port = 6633;
+    method = TLS_server_method();
+    ctx = SSL_CTX_new(method);
+    if (ctx == NULL) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
 
-	int ret = 0;
-	int hsm_tag = 1;
-	int aio_tag = 1;
-	int error;
+    if (SSL_CTX_use_certificate_file(ctx, TLS_SERVER_CERT, SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
 
-	/* Load encryption & hashing algorithms for the SSL program */
-        SSL_library_init();
+    if (SSL_CTX_use_PrivateKey_file(ctx, TLS_SERVER_KEY, SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
 
-	/* Load the error strings for SSL & CRYPTO APIs */
-        SSL_load_error_strings();
+    if (!SSL_CTX_check_private_key(ctx)) {
+        fprintf(stderr, "TLS private key does not match certificate\n");
+        return 1;
+    }
 
-	/* Create a SSL_METHOD structure (choose a SSL/TLS protocol version) */
-	meth = SSLv23_server_method();
+    if (!SSL_CTX_load_verify_locations(ctx, TLS_CA_CERT, NULL)) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
 
-	/* Create a SSL_CTX structure */
-	ctx = SSL_CTX_new(meth);
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 
-	if (!ctx)
-	{
-		ERR_print_errors_fp(stderr);
-		exit(1);
-	}
+    listen_sock = create_listen_socket();
+    printf("TLS server listening on 0.0.0.0:%d\n", TLS_PORT);
 
-	/* Load the server certificate into the SSL_CTX structure */
-	if (SSL_CTX_use_certificate_file(ctx, SERVER_CERT, SSL_FILETYPE_PEM) <= 0)
-	{
-		ERR_print_errors_fp(stderr);
-		exit(1);
-	}
+    sock = accept(listen_sock, NULL, NULL);
+    if (sock < 0) {
+        perror("accept");
+        return 1;
+    }
 
-	/* Load the private-key corresponding to the server certificate */
-	if (SSL_CTX_use_PrivateKey_file(ctx, SERVER_KEY, SSL_FILETYPE_PEM) <= 0)
-	{
-		ERR_print_errors_fp(stderr);
-		exit(1);
-	}
-#if 0
-	/* Check if the server certificate and private-key matches */
-	if (!SSL_CTX_check_private_key(ctx))
-	{
-		fprintf(stderr, "Private key does not match the certificate public key\n");
-		exit(1);
-	}
+    ssl = SSL_new(ctx);
+    if (ssl == NULL) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
 
-	/* Load the server encrypt certificate into the SSL_CTX structure */
-	if (SSL_CTX_use_certificate_file(ctx, SM2_SERVER_ENC_CERT, SSL_FILETYPE_PEM) <= 0)
-	{
-		ERR_print_errors_fp(stderr);
-		exit(1);
-	}
+    SSL_set_fd(ssl, sock);
+    SSL_set_accept_state(ssl);
 
-	/* Load the private-key corresponding to the server encrypt certificate */
-	if (SSL_CTX_use_enc_PrivateKey_file(ctx, SM2_SERVER_ENC_KEY, SSL_FILETYPE_PEM) <= 0)
-	{
-		ERR_print_errors_fp(stderr);
-		exit(1);
-	}
+    if (SSL_do_handshake(ssl) <= 0) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
 
-	/* Check if the server encrypt certificate and private-key matches */
-	if (!SSL_CTX_check_enc_private_key(ctx))
-	{
-		fprintf(stderr, "Private key does not match the certificate public key\n");
-		exit(1);
-	}
+    printf("TLS server handshake ok\n");
+    printf("Protocol: %s\n", SSL_get_version(ssl));
+    printf("Cipher: %s\n", SSL_get_cipher(ssl));
+    show_peer_cert(ssl);
 
-#endif
-	if (verify_client == ON)
-	{
-		/* Load the RSA CA certificate into the SSL_CTX structure */
-		if (!SSL_CTX_load_verify_locations(ctx, SERVER_CA_CERT, NULL))
-		{
-			ERR_print_errors_fp(stderr);
-			exit(1);
-		}
+    memset(buf, 0, sizeof(buf));
+    n = SSL_read(ssl, buf, sizeof(buf) - 1);
+    if (n <= 0) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
 
-		/* Set to require peer (client) certificate verification */
-		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
-		//SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
-		//SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
+    printf("Received %d chars: '%s'\n", n, buf);
 
-		/* Set the verification depth to 1 */
-		SSL_CTX_set_verify_depth(ctx, 1);
+    if (SSL_write(ssl, "hello from tls server", strlen("hello from tls server")) <= 0) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
 
-	}
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    close(sock);
+    close(listen_sock);
+    SSL_CTX_free(ctx);
 
-	/* ----------------------------------------------- */
-	/* Set up a TCP socket IPPROTO_TCP*/
-	listen_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	
-	ret = setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, (void *)&opt, sizeof(opt));
-	if (ret == -1)
-	{
-		printf("set socket erro\n");
-		exit(1);
-
-	}
-	
-	//RETURN_ERR(listen_sock, "socket");
-	memset(&sa_serv, '\0', sizeof(sa_serv));
-	sa_serv.sin_family = AF_INET;
-	sa_serv.sin_addr.s_addr = INADDR_ANY;
-	sa_serv.sin_port = htons(s_port);          /* Server Port number */
-	ret = bind(listen_sock, (struct sockaddr*)&sa_serv, sizeof(sa_serv));
-	if (ret == -1)
-	{
-		printf("bind err\n");
-		exit(1);
-
-	}
-
-	/* Wait for an incoming TCP connection. */
-	err = listen(listen_sock, 5);
-
-	RETURN_ERR(err, "listen");
-	client_len = sizeof(sa_cli);
-
-	/* Socket for a TCP/IP connection is created */
-	sock = accept(listen_sock, (struct sockaddr *)&sa_cli, (socklen_t *)&client_len);
-
-	RETURN_ERR(sock, "accept");
-	//close(listen_sock);
-
-	//printf("Connection from %d, port %d\n",sa_cli.sin_addr.s_addr,sa_cli.sin_port);
-
-	/* ----------------------------------------------- */
-	/* TCP connection is ready. */
-	/* A SSL structure is created */
-#if 0
-	if (!SSL_CTX_set_cipher_list(ctx, "ECC-SM4-SM3")) {
-                ERR_print_errors_fp(stderr);
-                printf("set cipher list fail!\n");
-                goto err;
-        }
-#endif
-	ssl = SSL_new(ctx);
-
-	RETURN_NULL(ssl);
-
-	/* Assign the socket into the SSL structure (SSL and socket without BIO) */
-	SSL_set_fd(ssl, sock);
-
-	/* Perform SSL Handshake on the SSL server */
-	/*err = SSL_accept(ssl);*/
-	SSL_set_accept_state(ssl);
-	while (1)
-	{
-		err = SSL_do_handshake(ssl);
-		if (err <= 0)
-		{
-			if (SSL_get_error(ssl, err) == SSL_ERROR_WANT_HSM_RESULT)
-				continue;
-			else
-			{
-				ERR_print_errors_fp(stderr);
-				goto err;
-			}
-		}
-		else
-			break;
-	}
-
-	RETURN_SSL(err);
-
-	/* Informational output (optional) */
-	printf("SSL connection using %s\n", SSL_get_cipher(ssl));
-	ShowCerts(ssl);
-
-
-	/*------- DATA EXCHANGE - Receive message and send reply. -------*/
-	/* Receive data from the SSL client */
-	while (1) {
-		memset(buf, 0x00, sizeof(buf));
-		err = SSL_read(ssl, buf, sizeof(buf) - 1);
-		if (err <= 0) {
-			printf("ssl_read fail!\n");
-			break;
-		}
-		break;
-	}
-
-	RETURN_SSL(err);
-
-	buf[err] = '\0';
-
-	printf("Received %d chars:'%s'\n", err, buf);
-
-	/* Send data to the SSL client */
-	err = SSL_write(ssl,
-		"-----This message is from the SSL server-----",
-		strlen("-----This message is from the SSL server-----"));
-
-
-	sleep(100);
-
-	RETURN_SSL(err);
-
-	/*--------------- SSL closure ---------------*/
-	/* Shutdown this side (server) of the connection. */
-
-	err = SSL_shutdown(ssl);
-
-	RETURN_SSL(err);
-
-	/* Terminate communication on a socket */
-	//close(sock);
-	//close(listen_sock);
-
-err:
-
-	/* Free the SSL structure */
-//	if (ssl) SSL_free(ssl);
-
-	/* Free the SSL_CTX structure */
-	if (ctx) SSL_CTX_free(ctx);
-
-
-	return 0;
-
-
+    return 0;
 }
-
-
-
-
-

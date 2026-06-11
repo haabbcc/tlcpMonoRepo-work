@@ -98,6 +98,30 @@ SSL_CTX_use_enc_PrivateKey_file(...)
 - TLCP-PQC 主工具大量使用 `X509 *` / `EVP_PKEY *`
 - demo 主路径仍使用文件路径作为输入参数
 
+### 3.4 普通 TLS 接口测试
+
+demo 现在额外提供普通 TLS 测试路径：
+
+- `demo/demo/server_tls.c`
+- `demo/demo/client_tls.c`
+- `demo/demo/test_tls.sh`
+
+这组文件用于验证非 NTLS 模式下的基础协议库接口：
+
+```c
+TLS_server_method()
+TLS_client_method()
+SSL_CTX_use_certificate_file()
+SSL_CTX_use_PrivateKey_file()
+SSL_CTX_load_verify_locations()
+SSL_CTX_set_verify()
+SSL_do_handshake()
+SSL_read()
+SSL_write()
+```
+
+该测试使用普通 RSA 测试证书，由 `mk.sh` 自动生成到 `demo/certs/`。它不启用 `SSL_CTX_enable_ntls()`，也不调用 `SSL_CTX_use_sign_certificate_file()` 或 `SSL_CTX_use_enc_certificate_file()`。
+
 ## 4. 协议与握手开关差异
 
 | 对比项 | TLCP-PQC | demo |

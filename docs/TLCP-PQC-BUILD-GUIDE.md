@@ -201,6 +201,33 @@ demo 目前已经切换到 NTLS 双证书接口，目标套件是：
 ECC-KYBER-SM4-GCM-SM3
 ```
 
+### 8.2 运行普通 TLS 接口测试
+
+除 NTLS 双证书 demo 外，`demo/demo` 还提供普通 TLS 接口测试：
+
+```bash
+cd demo/demo
+./test_tls.sh
+```
+
+该测试会：
+
+1. 自动生成 TLS 测试 CA、服务端证书和客户端证书
+2. 编译 `server_tls` 与 `client_tls`
+3. 启动 TLS 服务端
+4. 使用 TLS 客户端完成双向证书握手和数据收发
+
+该路径使用普通 TLS 接口：
+
+```c
+TLS_server_method()
+TLS_client_method()
+SSL_CTX_use_certificate_file()
+SSL_CTX_use_PrivateKey_file()
+```
+
+它不调用 `SSL_CTX_enable_ntls()`，也不使用国密双证书接口。
+
 ## 9. 常见问题
 
 ### 9.1 `Makefile wasn't produced`

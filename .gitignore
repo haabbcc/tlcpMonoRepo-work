@@ -30,19 +30,18 @@ config/openssl-providers.cnf
 angie-install/
 angie-work/
 .wsl/
+demo/certs/tls_*
 
-# Temporary files
-/tmp/tlcp_*
-*.swp
-*~
-
-# Built demo executables
+# Built demo executables and logs
 demo/demo/1
 demo/demo/client
+demo/demo/client_tls
 demo/demo/server
 demo/demo/server_P
 demo/demo/server_PP
 demo/demo/server_tls
+demo/demo/*.log
+demo/demo/*:Zone.Identifier
 
 # Tongsuo generated test/fuzz executables
 tongsuo/test/*test
@@ -64,3 +63,8 @@ tongsuo/test/evp_pkey_ctx_new_from_name
 
 # Demo backup libraries
 demo/demo/lib/*.bak
+
+# Temporary files
+/tmp/tlcp_*
+*.swp
+*~

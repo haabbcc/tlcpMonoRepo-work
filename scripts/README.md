@@ -30,6 +30,16 @@ source ./env.sh
 
 部分脚本内部会自动 `source ../../env.sh`，但建议先在当前 shell 中手动加载环境，避免 provider 路径不一致。
 
+## demo TLS 测试
+
+普通 TLS 接口测试不在本目录下，位于：
+
+```bash
+demo/demo/test_tls.sh
+```
+
+该测试用于验证 `TLS_server_method()` / `TLS_client_method()` 路径，与 `scripts/` 下的 NTLS/TLCP 联调脚本互补。
+
 ## 参考文档
 
 - [构建指南](C:/Users/14050/Desktop/dpdk/tlcpMonoRepo/tlcpMonoRepo-main/docs/TLCP-PQC-BUILD-GUIDE.md)

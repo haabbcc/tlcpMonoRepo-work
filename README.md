@@ -128,6 +128,14 @@ bash scripts/Angie_TLCP_PQC/test-client.sh
 
 可用于最小化验证 `ECC-KYBER-SM4-GCM-SM3` 双证书握手。
 
+普通 TLS 接口测试使用另一组文件：
+
+- `demo/demo/server_tls.c`
+- `demo/demo/client_tls.c`
+- `demo/demo/test_tls.sh`
+
+这条路径使用 `TLS_server_method()` / `TLS_client_method()` 和普通单证书接口，不启用 NTLS。
+
 ## 文档
 
 - [构建指南](C:/Users/14050/Desktop/dpdk/tlcpMonoRepo/tlcpMonoRepo-main/docs/TLCP-PQC-BUILD-GUIDE.md)
