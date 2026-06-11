@@ -1,6 +1,20 @@
-export SDF_LIBRARY=/home/vegw/gsk/demo/lib/libhsm_sdf_api.so
-export OPENSSL_ENGINES=/home/vegw/gsk/demo/lib/
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/vegw/gsk/demo/lib
+#!/bin/sh
+set -e
 
-#./server
-./server_P
+cat >&2 <<'EOF'
+conf.sh is a legacy hardware/SDF helper and is not part of the current
+tlcpMonoRepo demo flow.
+
+Use the Tongsuo-based demo commands instead:
+
+  cd demo/demo
+  ./mk.sh
+  ./server
+  ./client
+
+For the standard TLS interface test:
+
+  ./test_tls.sh
+EOF
+
+exit 1
