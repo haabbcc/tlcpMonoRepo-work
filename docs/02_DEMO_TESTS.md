@@ -27,7 +27,7 @@ source ./env.sh
 
 ```bash
 cd /root/tlcpMonoRepo-work/demo/demo
-./mk.sh
+sh mk.sh
 ```
 
 `mk.sh` 会生成：
