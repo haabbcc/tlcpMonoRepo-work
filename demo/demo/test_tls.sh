@@ -4,7 +4,7 @@ set -e
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "${SCRIPT_DIR}"
 
-./mk.sh
+sh ./mk.sh
 
 ./server_tls > tls_server.log 2>&1 &
 SERVER_PID=$!
