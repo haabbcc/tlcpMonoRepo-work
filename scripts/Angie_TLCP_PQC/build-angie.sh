@@ -24,9 +24,11 @@ fi
 
 (
   cd "${ANGIE_SRC}"
-  git fetch --tags origin
-  git checkout "${ANGIE_REF}"
-
+  if [[ -d ".git" ]]; then
+    git fetch --tags origin
+    git checkout "${ANGIE_REF}"
+  fi
+  
   ./configure \
     --prefix="${ANGIE_PREFIX}" \
     --with-http_ssl_module \
