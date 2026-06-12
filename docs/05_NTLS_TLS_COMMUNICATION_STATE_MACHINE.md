@@ -165,7 +165,7 @@ stateDiagram-v2
     Failed --> [*]
 ```
 
-## 6. 接口测试标
+## 6. 接口测试汇总
 
 server.c/client.c测试
 | 抽象层       | 接口                                                                                                                                                | 测试目的                                      |
