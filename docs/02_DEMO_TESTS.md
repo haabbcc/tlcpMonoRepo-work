@@ -539,7 +539,7 @@ Cipher: ...
 | 证书模型      | 签名证书 + 加密证书                                                                  | 单证书                                          |
 | 证书接口      | `SSL_CTX_use_sign_certificate_file()` / `SSL_CTX_use_enc_certificate_file()` | `SSL_CTX_use_certificate_file()`             |
 | 私钥接口      | `SSL_CTX_use_sign_PrivateKey_file()` / `SSL_CTX_use_enc_PrivateKey_file()`   | `SSL_CTX_use_PrivateKey_file()`              |
-| 密码套件设置    | 固定设置 `ECC-KYBER-SM4-GCM-SM3`                                                 | 使用普通 TLS 默认协商                                |
+| 密码套件设置    | 固定设置 `ECC-KYBER-SM4-GCM-SM3`                                                 |  TLS默认套件TLS_AES_256_GCM_SHA384                |
 | 服务端认证策略   | 要求客户端证书                                                                      | 要求客户端证书                                      |
 | 客户端认证策略   | 验证服务端证书                                                                      | 验证服务端证书                                      |
 | 握手驱动      | `SSL_do_handshake()`                                                         | `SSL_do_handshake()`                         |
