@@ -9,7 +9,7 @@ current Tongsuo NTLS/TLS demo.
 Use:
 
   cd demo/demo
-  ./mk.sh
+  sh ./mk.sh
 
 mk.sh links against:
 
