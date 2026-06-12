@@ -42,19 +42,20 @@ static void show_peer_cert(SSL *ssl)
 
 static int create_listen_socket(void)
 {
-    int listen_sock;
+    int listen_sock = -1;
     int opt = 1;
     struct sockaddr_in addr;
 
     listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_sock < 0) {
         perror("socket");
-        exit(1);
+        return -1;
     }
 
     if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
         perror("setsockopt");
-        exit(1);
+        close(listen_sock);
+        return -1;
     }
 
     memset(&addr, 0, sizeof(addr));
@@ -64,12 +65,14 @@ static int create_listen_socket(void)
 
     if (bind(listen_sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");
-        exit(1);
+        close(listen_sock);
+        return -1;
     }
 
     if (listen(listen_sock, 5) < 0) {
         perror("listen");
-        exit(1);
+        close(listen_sock);
+        return -1;
     }
 
     return listen_sock;
@@ -82,8 +85,11 @@ int main(void)
     const SSL_METHOD *method = NULL;
     int listen_sock = -1;
     int sock = -1;
+    struct sockaddr_in peer_addr;
+    socklen_t peer_len = sizeof(peer_addr);
     char buf[MAX_BUF_LEN];
     int n;
+    int ret = 1;
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -94,52 +100,60 @@ int main(void)
     ctx = SSL_CTX_new(method);
     if (ctx == NULL) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     if (SSL_CTX_use_certificate_file(ctx, TLS_SERVER_CERT, SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     if (SSL_CTX_use_PrivateKey_file(ctx, TLS_SERVER_KEY, SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     if (!SSL_CTX_check_private_key(ctx)) {
         fprintf(stderr, "TLS private key does not match certificate\n");
-        return 1;
+        goto err;
     }
 
     if (!SSL_CTX_load_verify_locations(ctx, TLS_CA_CERT, NULL)) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 
     listen_sock = create_listen_socket();
+    if (listen_sock < 0) {
+        goto err;
+    }
     printf("TLS server listening on 0.0.0.0:%d\n", TLS_PORT);
 
-    sock = accept(listen_sock, NULL, NULL);
+    memset(&peer_addr, 0, sizeof(peer_addr));
+    sock = accept(listen_sock, (struct sockaddr *)&peer_addr, &peer_len);
     if (sock < 0) {
         perror("accept");
-        return 1;
+        goto err;
     }
+    printf("TLS client connected from %s:%d\n",
+           inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port));
 
     ssl = SSL_new(ctx);
     if (ssl == NULL) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
-    SSL_set_fd(ssl, sock);
-    SSL_set_accept_state(ssl);
+    if (!SSL_set_fd(ssl, sock)) {
+        ERR_print_errors_fp(stderr);
+        goto err;
+    }
 
     if (SSL_do_handshake(ssl) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     printf("TLS server handshake ok\n");
@@ -151,21 +165,32 @@ int main(void)
     n = SSL_read(ssl, buf, sizeof(buf) - 1);
     if (n <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     printf("Received %d chars: '%s'\n", n, buf);
 
     if (SSL_write(ssl, "hello from tls server", strlen("hello from tls server")) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
-    SSL_shutdown(ssl);
-    SSL_free(ssl);
-    close(sock);
-    close(listen_sock);
-    SSL_CTX_free(ctx);
+    ret = 0;
 
-    return 0;
+err:
+    if (ssl != NULL) {
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+    }
+    if (sock >= 0) {
+        close(sock);
+    }
+    if (listen_sock >= 0) {
+        close(listen_sock);
+    }
+    if (ctx != NULL) {
+        SSL_CTX_free(ctx);
+    }
+
+    return ret;
 }
