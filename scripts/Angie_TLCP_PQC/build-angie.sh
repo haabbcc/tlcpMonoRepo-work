@@ -18,7 +18,7 @@ fi
 
 mkdir -p "$(dirname "${ANGIE_SRC}")" "${ANGIE_PREFIX}"
 
-if [[ ! -d "${ANGIE_SRC}/.git" ]]; then
+if [[ ! -d "${ANGIE_SRC}" ]]; then
   git clone "${ANGIE_REPO}" "${ANGIE_SRC}"
 fi
 
