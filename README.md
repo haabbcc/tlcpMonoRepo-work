@@ -33,8 +33,6 @@ ${OPENSSL} list -providers
 
 ## 文档分类
 
-`docs/` 下文档已经按职责拆成 5 个文件：
-
 | 文档 | 内容 |
 |---|---|
 | [`docs/01_BUILD_TLCP_MONOREPO.md`](docs/01_BUILD_TLCP_MONOREPO.md) | tlcpMonoRepo 编译 |
