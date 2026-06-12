@@ -41,10 +41,10 @@ ${OPENSSL} list -providers
 
 | 文档 | 内容 |
 |---|---|
-| [`docs/01_BUILD_TLCP_MONOREPO.md`](docs/01_BUILD_TLCP_MONOREPO.md) | 如何编译 `tlcpMonoRepo` |
-| [`docs/02_DEMO_TESTS.md`](docs/02_DEMO_TESTS.md) | 如何编译和运行 demo 测试 |
-| [`docs/03_ANGIE_TLCP_MONOREPO_INTEGRATION.md`](docs/04_ANGIE_TLCP_MONOREPO_INTEGRATION.md) | 编译 Angie + tongsuo + tlcpMonoRepo 一起使用 |
-| [`docs/04_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md`](docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md) | NTLS/TLS 中 server 与 client 通信测试过程 |
+| [`docs/01_BUILD_TLCP_MONOREPO.md`](docs/01_BUILD_TLCP_MONOREPO.md) | tlcpMonoRepo 编译 |
+| [`docs/02_DEMO_TESTS.md`](docs/02_DEMO_TESTS.md) | demo 测试 |
+| [`docs/03_ANGIE_TLCP_MONOREPO_INTEGRATION.md`](docs/04_ANGIE_TLCP_MONOREPO_INTEGRATION.md) | Angie + tongsuo + tlcpMonoRepo 测试 |
+| [`docs/04_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md`](docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md) | demo 测试过程分析 |
 
 ## Demo 概览
 
