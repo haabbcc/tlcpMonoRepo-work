@@ -8,7 +8,7 @@ tlcpMonoRepo demo flow.
 Use the Tongsuo-based demo commands instead:
 
   cd demo/demo
-  ./mk.sh
+  sh ./mk.sh
   ./server
   ./client
 
