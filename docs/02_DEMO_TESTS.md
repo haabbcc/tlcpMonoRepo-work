@@ -2,7 +2,7 @@
 
 本文档说明 `demo/demo` 目录下的独立 server/client 示例如何编译、运行，以及这些 demo 实际测试了哪些 Tongsuo/OpenSSL 接口路径。
 
-本文档按源码实际调用描述接口路径。需要特别说明的是：当前 demo 源码没有直接调用 `SSL_accept()` 或 `SSL_connect()`。服务端/客户端握手均通过 `SSL_do_handshake()` 驱动；其中 NTLS 服务端显式调用 `SSL_set_accept_state()`，NTLS 客户端和 TLS 客户端显式调用 `SSL_set_connect_state()`。
+服务端/客户端握手均通过 `SSL_do_handshake()` 驱动；其中 NTLS 服务端显式调用 `SSL_set_accept_state()`，NTLS 客户端和 TLS 客户端显式调用 `SSL_set_connect_state()`。
 
 ## 1. 文件结构
 
