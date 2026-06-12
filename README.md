@@ -42,33 +42,6 @@ ${OPENSSL} list -providers
 | [`docs/03_ANGIE_TLCP_MONOREPO_INTEGRATION.md`](docs/04_ANGIE_TLCP_MONOREPO_INTEGRATION.md) | Angie + tongsuo + tlcpMonoRepo 测试 |
 | [`docs/04_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md`](docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md) | demo 测试过程分析 |
 
-## Demo 概览
-
-NTLS demo 使用 Tongsuo 的国密双证书接口：
-
-```text
-NTLS_server_method()
-NTLS_client_method()
-SSL_CTX_enable_ntls()
-SSL_CTX_use_sign_certificate_file()
-SSL_CTX_use_sign_PrivateKey_file()
-SSL_CTX_use_enc_certificate_file()
-SSL_CTX_use_enc_PrivateKey_file()
-```
-
-普通 TLS demo 使用标准单证书接口：
-
-```text
-TLS_server_method()
-TLS_client_method()
-SSL_CTX_use_certificate_file()
-SSL_CTX_use_PrivateKey_file()
-```
-
-具体测试流程见：
-
-- `docs/02_DEMO_TESTS.md`
-- `docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md`
 
 ## 注意事项
 
