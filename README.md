@@ -17,8 +17,6 @@
 
 ## 快速开始
 
-建议在 Linux 文件系统中构建，例如 WSL 的 `/root` 下：
-
 ```bash
 cd /root
 git clone https://github.com/haabbcc/tlcpMonoRepo-work.git
@@ -32,8 +30,6 @@ source ./env.sh
 ${OPENSSL} version -a
 ${OPENSSL} list -providers
 ```
-
-不要在 `/mnt/c/...` 这类 Windows 挂载路径中构建，避免权限、符号链接、可执行文件和生成文件处理异常。
 
 ## 文档分类
 
@@ -78,4 +74,3 @@ SSL_CTX_use_PrivateKey_file()
 
 - 证书目录中的证书和私钥仅用于开发、实验和联调。
 - 构建产物、日志、临时文件不应提交。
-- `third_party/angie/` 保留 Angie 源码，不保留 Angie 构建产物。
