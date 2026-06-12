@@ -165,17 +165,33 @@ stateDiagram-v2
     Failed --> [*]
 ```
 
-## 6. 接口差异汇总
+## 6. 接口测试标
 
-| 项目 | NTLS demo | TLS demo |
-|---|---|---|
-| 服务端源码 | `demo/demo/server.c` | `demo/demo/server_tls.c` |
-| 客户端源码 | `demo/demo/client.c` | `demo/demo/client_tls.c` |
-| 协议方法 | `NTLS_server_method()`, `NTLS_client_method()` | `TLS_server_method()`, `TLS_client_method()` |
-| NTLS 开关 | `SSL_CTX_enable_ntls()` | 不使用 |
-| 服务端证书模型 | 签名证书 + 加密证书 | 单张 TLS 证书 |
-| 客户端证书模型 | 签名证书 + 加密证书 | 单张 TLS 证书 |
-| 证书加载接口 | `SSL_CTX_use_sign_certificate_file()`, `SSL_CTX_use_sign_PrivateKey_file()`, `SSL_CTX_use_enc_certificate_file()`, `SSL_CTX_use_enc_PrivateKey_file()` | `SSL_CTX_use_certificate_file()`, `SSL_CTX_use_PrivateKey_file()` |
-| 验证方式 | `SSL_CTX_load_verify_locations()` 加载 CA，并启用对端证书验证 | `SSL_CTX_load_verify_locations()` 加载 CA，并启用对端证书验证 |
-| 套件配置 | `ECC-KYBER-SM4-GCM-SM3` | TLS 默认协商 |
-| 测试端口 | `4433` | `4443` |
+server.c/client.c测试
+| 抽象层       | 代表接口                                                                                                                                                | 测试目的                                      |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| 协议方法选择接口  | `NTLS_server_method()` / `NTLS_client_method()`                                                                                                     | 确认程序走 NTLS/TLCP 协议栈，而不是普通 TLS             |
+| NTLS 开关接口 | `SSL_CTX_enable_ntls()`                                                                                                                             | 确认 SSL_CTX 被切换到 NTLS/TLCP 模式              |
+| 双证书加载接口   | `SSL_CTX_use_sign_certificate_file()`、`SSL_CTX_use_sign_PrivateKey_file()`、`SSL_CTX_use_enc_certificate_file()`、`SSL_CTX_use_enc_PrivateKey_file()` | 验证 TLCP 双证书模型：签名证书和加密证书分别加载               |
+| 私钥匹配检查接口  | `SSL_CTX_check_private_key()`                                                                                                                       | 验证证书与私钥是否匹配                               |
+| 密码套件选择接口  | `SSL_CTX_set_cipher_list("ECC-KYBER-SM4-GCM-SM3")`                                                                                                  | 强制验证 ECC/Kyber + SM4-GCM + SM3 这条套件路径是否可用 |
+| 证书验证接口    | `SSL_CTX_load_verify_locations()`、`SSL_CTX_set_verify()`                                                                                            | 验证 CA 信任链和双向认证路径                          |
+| 连接绑定接口    | server: `SSL_set_fd()`；client: `SSL_set_bio()`                                                                                                      | 把 TCP 连接绑定到 SSL 对象                        |
+| 握手接口      | `SSL_set_accept_state()` / `SSL_set_connect_state()` + `SSL_do_handshake()`                                                                         | 触发 NTLS/TLCP 握手状态机                        |
+| 数据收发接口    | `SSL_read()` / `SSL_write()`                                                                                                                        | 验证握手后 record 层可以正常传输应用数据                  |
+| 结果检查接口    | `SSL_get_cipher()`、`SSL_get_peer_certificate()`                                                                                                     | 查看最终协商套件和对端证书                             |
+
+server_tls.c/client_tls.c
+| 抽象层          | 代表接口                                                                    | 测试作用                                      |
+| ------------ | ----------------------------------------------------------------------- | ----------------------------------------- |
+| TLS 协议方法接口   | `TLS_server_method()` / `TLS_client_method()`                           | 创建普通 TLS server/client 协议方法               |
+| SSL 上下文接口    | `SSL_CTX_new()`                                                         | 创建 TLS 上下文                                |
+| 单证书加载接口      | `SSL_CTX_use_certificate_file()`                                        | 加载普通 TLS 证书                               |
+| 单私钥加载接口      | `SSL_CTX_use_PrivateKey_file()`                                         | 加载普通 TLS 私钥                               |
+| 证书私钥匹配检查     | `SSL_CTX_check_private_key()`                                           | 验证证书和私钥是否匹配                               |
+| CA 验证接口      | `SSL_CTX_load_verify_locations()`                                       | 加载 CA，用于验证对端证书                            |
+| 双向认证接口       | `SSL_CTX_set_verify()`                                                  | server 要求 client 提供证书，client 验证 server 证书 |
+| TCP/TLS 绑定接口 | server: `SSL_set_fd()`；client: `SSL_set_bio()`                          | 把底层 TCP 连接绑定到 SSL 对象                      |
+| TLS 握手接口     | `SSL_do_handshake()`                                                    | 驱动 TLS 握手                                 |
+| 协商结果检查       | `SSL_get_version()` / `SSL_get_cipher()` / `SSL_get_peer_certificate()` | 打印协议版本、套件、对端证书                            |
+| 应用数据接口       | `SSL_read()` / `SSL_write()`                                            | 验证 TLS record 层收发正常                       |
