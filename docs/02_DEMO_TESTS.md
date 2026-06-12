@@ -53,7 +53,7 @@ client_tls
 ```bash
 source /root/tlcpMonoRepo-work/env.sh
 cd /root/tlcpMonoRepo-work/demo/demo
-./mk.sh
+sh mk.sh
 ```
 
 如果系统没有可用的 `openssl.cnf`，`mk.sh` 已经给 `openssl req` 显式使用 `/dev/null` 配置，避免 TLS 测试证书生成阶段阻断 demo 编译。
