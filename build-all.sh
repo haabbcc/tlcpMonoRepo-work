@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
-TONGSUO_CONFIGURE="${TONGSUO_CONFIGURE:-linux-x86_64 enable-ntls}"
+TONGSUO_CONFIGURE="${TONGSUO_CONFIGURE:-linux-x86_64 enable-ntls enable-shared}"
 
 echo "==> TLCP_ROOT=${TLCP_ROOT}"
 
