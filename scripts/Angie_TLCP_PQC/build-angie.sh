@@ -34,7 +34,7 @@ fi
     --with-http_ssl_module \
     --with-ntls \
     --with-openssl="${TONGSUO_ROOT}" \
-    --with-openssl-opt="enable-ntls" \
+    --with-openssl-opt="enable-ntls enable-shared" \
     ${ANGIE_EXTRA_CONFIGURE}
 
   make -j"${JOBS}"
