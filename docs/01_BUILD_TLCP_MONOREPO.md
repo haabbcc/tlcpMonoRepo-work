@@ -52,7 +52,7 @@ source ./env.sh
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `JOBS` | `nproc` 或 `4` | 并行编译任务数 |
-| `TONGSUO_CONFIGURE` | `linux-x86_64 enable-ntls` | Tongsuo Configure 参数 |
+| `TONGSUO_CONFIGURE` | `linux-x86_64 enable-ntls enable-shared` | Tongsuo Configure 参数 |
 | `TLCP_ROOT` | 来自 `env.sh` | 仓库根目录 |
 | `TONGSUO_ROOT` | `${TLCP_ROOT}/tongsuo` | Tongsuo 源码目录 |
 | `PQMAGIC_PREFIX` | 来自 `env.sh` | PQMagic 安装目录 |
