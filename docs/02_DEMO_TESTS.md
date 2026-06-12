@@ -1,21 +1,23 @@
 # demo 测试说明
 
-本文档说明 `demo/demo` 下的独立 server/client 示例如何编译和运行。
+本文档说明 `demo/demo` 目录下的独立 server/client 示例如何编译、运行，以及这些 demo 实际测试了哪些 Tongsuo/OpenSSL 接口路径。
+
+本文档按源码实际调用描述接口路径。需要特别说明的是：当前 demo 源码没有直接调用 `SSL_accept()` 或 `SSL_connect()`。服务端/客户端握手均通过 `SSL_do_handshake()` 驱动；其中 NTLS 服务端显式调用 `SSL_set_accept_state()`，NTLS 客户端和 TLS 客户端显式调用 `SSL_set_connect_state()`。
 
 ## 1. 文件结构
 
-| 文件 | 协议 | 角色 | 作用 |
-|---|---|---|---|
-| `demo/demo/server.c` | NTLS/TLCP | 服务端 | 国密双证书 PQC/GM server demo |
-| `demo/demo/client.c` | NTLS/TLCP | 客户端 | 国密双证书 PQC/GM client demo |
-| `demo/demo/server_tls.c` | TLS | 服务端 | 标准 TLS server demo |
-| `demo/demo/client_tls.c` | TLS | 客户端 | 标准 TLS client demo |
-| `demo/demo/mk.sh` | 编译脚本 | 脚本 | 同时编译 NTLS 和 TLS demo |
-| `demo/demo/test_tls.sh` | TLS 测试脚本 | 脚本 | 自动运行 TLS server/client 接口测试 |
+| 文件                       | 协议        | 角色  | 作用                                 |
+| ------------------------ | --------- | --- | ---------------------------------- |
+| `demo/demo/server.c`     | NTLS/TLCP | 服务端 | 国密双证书 + ECC/Kyber 混合套件 server demo |
+| `demo/demo/client.c`     | NTLS/TLCP | 客户端 | 国密双证书 + ECC/Kyber 混合套件 client demo |
+| `demo/demo/server_tls.c` | TLS       | 服务端 | 普通 TLS server demo                 |
+| `demo/demo/client_tls.c` | TLS       | 客户端 | 普通 TLS client demo                 |
+| `demo/demo/mk.sh`        | 编译脚本      | 脚本  | 编译 NTLS demo 和 TLS demo            |
+| `demo/demo/test_tls.sh`  | TLS 测试脚本  | 脚本  | 自动运行 TLS server/client 接口测试        |
 
 ## 2. 编译 demo
 
-先编译核心项目：
+先编译核心项目，并加载运行环境：
 
 ```bash
 cd /root/tlcpMonoRepo-work
@@ -30,7 +32,7 @@ cd /root/tlcpMonoRepo-work/demo/demo
 sh mk.sh
 ```
 
-`mk.sh` 会生成：
+`mk.sh` 会生成以下可执行文件：
 
 ```text
 server
@@ -39,16 +41,35 @@ server_tls
 client_tls
 ```
 
-如果 `demo/certs/` 下没有 TLS 测试证书，脚本会自动生成 TLS CA、服务端证书和客户端证书。
+`mk.sh` 编译时默认使用仓库内的 Tongsuo 头文件和库文件：
 
-证书生成使用的 `openssl` 选择顺序如下：
+```text
+TONGSUO_INC_DIR=${REPO_ROOT}/tongsuo/include
+TONGSUO_LIB_DIR=${REPO_ROOT}/tongsuo
+```
 
-1. 显式设置的 `CERT_OPENSSL_BIN`
-2. `env.sh` 中的 `${OPENSSL}`
-3. 仓库内的 `tongsuo/apps/openssl`
-4. 系统 `openssl`
+如果外部显式设置了 `TONGSUO_INC_DIR` 或 `TONGSUO_LIB_DIR`，则优先使用外部指定路径。
 
-在新机器上建议先执行：
+`env.sh` 会设置 Tongsuo 和 provider 相关运行环境变量，主要包括：
+
+```text
+LD_LIBRARY_PATH
+OPENSSL_MODULES
+OPENSSL_CONF
+```
+
+其中 `OPENSSL_CONF` 指向仓库内的 provider 配置文件，用于让 Tongsuo 在运行时加载相应 provider。
+
+如果 `demo/certs/` 下没有 TLS 测试证书，`mk.sh` 会自动生成普通 TLS 测试所需的 CA、服务端证书和客户端证书。证书生成使用的 `openssl` 选择顺序如下：
+
+```text
+1. 显式设置的 CERT_OPENSSL_BIN
+2. env.sh 中的 OPENSSL
+3. 仓库内的 tongsuo/apps/openssl
+4. 系统 openssl
+```
+
+在新机器上建议执行：
 
 ```bash
 source /root/tlcpMonoRepo-work/env.sh
@@ -56,135 +77,459 @@ cd /root/tlcpMonoRepo-work/demo/demo
 sh mk.sh
 ```
 
-如果系统没有可用的 `openssl.cnf`，`mk.sh` 已经给 `openssl req` 显式使用 `/dev/null` 配置，避免 TLS 测试证书生成阶段阻断 demo 编译。
-
 ## 3. NTLS demo
 
-NTLS demo 使用 Tongsuo 的 NTLS/TLCP 双证书接口。
+### 3.1 测试目标
 
-服务端接口路径：
+NTLS demo 由 `server.c` 和 `client.c` 组成，用于验证 Tongsuo 的 NTLS/TLCP 双证书接口路径是否可端到端跑通。
+
+该测试覆盖以下能力：
 
 ```text
+1. 创建 NTLS server/client SSL_CTX
+2. 显式启用 NTLS/TLCP 模式
+3. 分别加载签名证书、签名私钥、加密证书、加密私钥
+4. 检查证书和私钥匹配关系
+5. 设置 ECC-KYBER-SM4-GCM-SM3 混合密码套件
+6. 加载 CA 并启用对端证书验证
+7. 建立 TCP 连接
+8. 通过 SSL_do_handshake() 驱动 NTLS/TLCP 握手
+9. 握手完成后通过 SSL_read()/SSL_write() 验证 record 层应用数据收发
+```
+
+该测试不是性能测试，也不是 HTTP 业务测试。它只验证一个最小 server/client 通信链路：握手成功后，客户端发送一条应用数据，服务端读取后返回一条应用数据。
+
+### 3.2 证书与密码套件
+
+NTLS demo 使用仓库根目录下的 `certs/loose` 证书：
+
+```text
+../../certs/loose/sign_sm2.crt
+../../certs/loose/sign_sm2.key
+../../certs/loose/enc_sm2.crt
+../../certs/loose/enc_sm2.key
+../../certs/loose/ca_sm2.crt
+```
+
+注意：这里的相对路径是以 `demo/demo` 作为运行目录计算的。
+
+NTLS demo 固定设置密码套件：
+
+```text
+ECC-KYBER-SM4-GCM-SM3
+```
+
+默认服务端监听端口：
+
+```text
+4433
+```
+
+默认客户端连接地址：
+
+```text
+127.0.0.1:4433
+```
+
+### 3.3 服务端接口路径
+
+`server.c` 的接口路径如下：
+
+```text
+SSL_library_init()
+SSL_load_error_strings()
+
 NTLS_server_method()
 SSL_CTX_new()
 SSL_CTX_enable_ntls()
+
 SSL_CTX_use_sign_certificate_file()
 SSL_CTX_use_sign_PrivateKey_file()
+SSL_CTX_check_private_key()
+
 SSL_CTX_use_enc_certificate_file()
 SSL_CTX_use_enc_PrivateKey_file()
+SSL_CTX_check_private_key()
+
 SSL_CTX_set_cipher_list("ECC-KYBER-SM4-GCM-SM3")
+
 SSL_CTX_load_verify_locations()
-SSL_CTX_set_verify()
-SSL_accept()
+SSL_CTX_set_verify(SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+SSL_CTX_set_verify_depth()
+
+socket()
+setsockopt()
+bind()
+listen()
+accept()
+
+SSL_new()
+SSL_set_fd()
+
+SSL_set_accept_state()
+SSL_do_handshake()
+
+SSL_get_cipher()
+SSL_get_peer_certificate()
+
+SSL_read()
+SSL_write()
+
+SSL_shutdown()
+SSL_free()
+SSL_CTX_free()
 ```
 
-客户端接口路径：
+其中，NTLS 服务端握手不是通过 `SSL_accept()` 触发，而是由以下逻辑显式驱动：
+
+```c
+SSL_set_accept_state(ssl);
+
+for (;;) {
+    ret = SSL_do_handshake(ssl);
+    if (ret > 0) {
+        return 1;
+    }
+
+    if (SSL_get_error(ssl, ret) == SSL_ERROR_WANT_HSM_RESULT) {
+        continue;
+    }
+
+    ERR_print_errors_fp(stderr);
+    return 0;
+}
+```
+
+这里的 `SSL_ERROR_WANT_HSM_RESULT` 是 demo 中定义的特殊错误码：
+
+```c
+#define SSL_ERROR_WANT_HSM_RESULT 10
+```
+
+因此该 demo 保留了对 HSM/异步密码设备返回状态的处理痕迹：当握手过程中出现该状态时，demo 会继续调用 `SSL_do_handshake()`。
+
+### 3.4 客户端接口路径
+
+`client.c` 的接口路径如下：
 
 ```text
+SSL_library_init()
+SSL_load_error_strings()
+
 NTLS_client_method()
 SSL_CTX_new()
 SSL_CTX_enable_ntls()
+
 SSL_CTX_use_sign_certificate_file()
 SSL_CTX_use_sign_PrivateKey_file()
+SSL_CTX_check_private_key()
+
 SSL_CTX_use_enc_certificate_file()
 SSL_CTX_use_enc_PrivateKey_file()
+SSL_CTX_check_private_key()
+
 SSL_CTX_load_verify_locations()
-SSL_CTX_set_verify()
+SSL_CTX_set_verify(SSL_VERIFY_PEER)
+
 SSL_CTX_set_cipher_list("ECC-KYBER-SM4-GCM-SM3")
-SSL_connect()
+
+BIO_new_connect("127.0.0.1:4433")
+BIO_do_connect()
+
+SSL_new()
+SSL_set_bio()
+
+SSL_set_connect_state()
+SSL_do_handshake()
+
+SSL_get_cipher()
+SSL_get_peer_certificate()
+
+SSL_write()
+SSL_read()
+
+SSL_shutdown()
+SSL_free()
+SSL_CTX_free()
 ```
 
-手动运行服务端：
+其中，NTLS 客户端握手不是通过 `SSL_connect()` 触发，而是由以下逻辑显式驱动：
+
+```c
+SSL_set_connect_state(ssl);
+
+for (;;) {
+    ret = SSL_do_handshake(ssl);
+    if (ret > 0) {
+        return 1;
+    }
+
+    if (SSL_get_error(ssl, ret) == SSL_ERROR_WANT_HSM_RESULT) {
+        continue;
+    }
+
+    ERR_print_errors_fp(stderr);
+    return 0;
+}
+```
+
+### 3.5 手动运行 NTLS demo
+
+终端 1 启动服务端：
 
 ```bash
 cd /root/tlcpMonoRepo-work/demo/demo
 ./server
 ```
 
-另开一个终端运行客户端：
+终端 2 启动客户端：
 
 ```bash
 cd /root/tlcpMonoRepo-work/demo/demo
 ./client
 ```
 
-默认 NTLS 测试端口：
+服务端期望看到类似输出：
 
 ```text
-4433
+sign cert/key set ok
+enc cert/key set ok
+cipher set ok: ECC-KYBER-SM4-GCM-SM3
+NTLS server listening on 0.0.0.0:4433
+NTLS client connected from 127.0.0.1:xxxxx
+server handshake ok
+SSL connection using ECC-KYBER-SM4-GCM-SM3
+Peer certificate information:
+Received ... chars:'hello i am from client!'
+SSL write over
 ```
 
-server 和 client 都从 `certs/loose` 读取签名证书和加密证书。
+客户端期望看到类似输出：
+
+```text
+handshake ok
+SSL connection using ECC-KYBER-SM4-GCM-SM3
+Peer certificate information:
+SSL recv: -----This message is from the SSL server-----.
+```
 
 ## 4. TLS demo
 
-TLS demo 明确不启用 NTLS，用于验证普通 TLS API 路径。
+### 4.1 测试目标
 
-服务端接口路径：
+TLS demo 由 `server_tls.c` 和 `client_tls.c` 组成，用于验证普通 TLS API 路径。它不启用 NTLS，不使用 TLCP 双证书接口，也不设置 `ECC-KYBER-SM4-GCM-SM3`。
+
+该测试覆盖以下能力：
 
 ```text
+1. 创建普通 TLS server/client SSL_CTX
+2. 加载普通 TLS 单证书和私钥
+3. 检查证书和私钥匹配关系
+4. 加载 CA 并启用对端证书验证
+5. 建立 TCP 连接
+6. 通过 SSL_do_handshake() 驱动 TLS 握手
+7. 打印协商出的 TLS 版本和密码套件
+8. 握手完成后通过 SSL_read()/SSL_write() 验证 record 层应用数据收发
+```
+
+TLS demo 的作用是作为 NTLS demo 的对照组。若 TLS demo 失败，说明基础 Tongsuo/OpenSSL、证书、库路径或 socket 环境可能存在问题；若 TLS demo 成功而 NTLS demo 失败，则问题更可能集中在 NTLS 开关、双证书接口、混合密码套件或 provider 配置路径。
+
+### 4.2 证书与端口
+
+TLS demo 使用 `demo/certs` 下的普通 TLS 测试证书：
+
+```text
+../certs/tls_ca.crt
+../certs/tls_server.crt
+../certs/tls_server.key
+../certs/tls_client.crt
+../certs/tls_client.key
+```
+
+注意：这里的相对路径是以 `demo/demo` 作为运行目录计算的。
+
+默认服务端监听端口：
+
+```text
+4443
+```
+
+默认客户端连接地址：
+
+```text
+127.0.0.1:4443
+```
+
+### 4.3 服务端接口路径
+
+`server_tls.c` 的接口路径如下：
+
+```text
+SSL_library_init()
+SSL_load_error_strings()
+
 TLS_server_method()
 SSL_CTX_new()
+
 SSL_CTX_use_certificate_file()
 SSL_CTX_use_PrivateKey_file()
 SSL_CTX_check_private_key()
+
 SSL_CTX_load_verify_locations()
-SSL_CTX_set_verify()
-SSL_accept()
+SSL_CTX_set_verify(SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+
+socket()
+setsockopt()
+bind()
+listen()
+accept()
+
+SSL_new()
+SSL_set_fd()
+
+SSL_do_handshake()
+
+SSL_get_version()
+SSL_get_cipher()
+SSL_get_peer_certificate()
+
+SSL_read()
+SSL_write()
+
+SSL_shutdown()
+SSL_free()
+SSL_CTX_free()
 ```
 
-客户端接口路径：
+`server_tls.c` 没有调用 `SSL_accept()`。它在 `SSL_set_fd()` 后直接调用：
+
+```c
+SSL_do_handshake(ssl);
+```
+
+服务端通过 `SSL_CTX_set_verify()` 设置：
 
 ```text
+SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+```
+
+因此 TLS demo 的服务端要求客户端必须提供证书，属于普通 TLS 双向认证测试。
+
+### 4.4 客户端接口路径
+
+`client_tls.c` 的接口路径如下：
+
+```text
+SSL_library_init()
+SSL_load_error_strings()
+
 TLS_client_method()
 SSL_CTX_new()
+
 SSL_CTX_use_certificate_file()
 SSL_CTX_use_PrivateKey_file()
 SSL_CTX_check_private_key()
+
 SSL_CTX_load_verify_locations()
-SSL_CTX_set_verify()
-SSL_connect()
+SSL_CTX_set_verify(SSL_VERIFY_PEER)
+
+BIO_new_connect("127.0.0.1:4443")
+BIO_do_connect()
+
+SSL_new()
+SSL_set_bio()
+
+SSL_set_connect_state()
+SSL_do_handshake()
+
+SSL_get_version()
+SSL_get_cipher()
+SSL_get_peer_certificate()
+
+SSL_write()
+SSL_read()
+
+SSL_shutdown()
+SSL_free()
+SSL_CTX_free()
 ```
 
-运行自动 TLS 接口测试：
+`client_tls.c` 没有调用 `SSL_connect()`。它在 `SSL_set_bio()` 后显式调用：
+
+```c
+SSL_set_connect_state(ssl);
+SSL_do_handshake(ssl);
+```
+
+### 4.5 自动运行 TLS 接口测试
+
+执行：
 
 ```bash
 cd /root/tlcpMonoRepo-work/demo/demo
 ./test_tls.sh
 ```
 
-期望输出：
+`test_tls.sh` 会执行以下动作：
+
+```text
+1. 调用 mk.sh 编译 demo
+2. 后台启动 server_tls
+3. 运行 client_tls
+4. 打印 tls_server.log 和 tls_client.log
+5. 检查服务端是否输出 TLS server handshake ok
+6. 检查客户端是否输出 TLS client handshake ok
+7. 检查客户端是否收到 hello from tls server
+```
+
+期望最终输出：
 
 ```text
 TLS interface test ok
 ```
 
-已验证的 TLS 路径：
+注意：`server_tls.c` 和 `client_tls.c` 会打印实际协商出的 TLS 协议版本和密码套件，例如：
 
 ```text
-TLSv1.3
-TLS_AES_256_GCM_SHA384
+Protocol: ...
+Cipher: ...
 ```
 
-默认 TLS 测试端口：
+但 `test_tls.sh` 当前只检查握手成功和应用数据收发成功，不固定校验某一个具体 TLS 版本或某一个具体密码套件。
+
+## 5. NTLS demo 与 TLS demo 差异
+
+| 项目        | NTLS demo                                                                    | TLS demo                                     |
+| --------- | ---------------------------------------------------------------------------- | -------------------------------------------- |
+| 源码文件      | `server.c`, `client.c`                                                       | `server_tls.c`, `client_tls.c`               |
+| 协议方法      | `NTLS_server_method()`, `NTLS_client_method()`                               | `TLS_server_method()`, `TLS_client_method()` |
+| 是否启用 NTLS | 调用 `SSL_CTX_enable_ntls()`                                                   | 不调用                                          |
+| 证书模型      | 签名证书 + 加密证书                                                                  | 单证书                                          |
+| 证书接口      | `SSL_CTX_use_sign_certificate_file()` / `SSL_CTX_use_enc_certificate_file()` | `SSL_CTX_use_certificate_file()`             |
+| 私钥接口      | `SSL_CTX_use_sign_PrivateKey_file()` / `SSL_CTX_use_enc_PrivateKey_file()`   | `SSL_CTX_use_PrivateKey_file()`              |
+| 密码套件设置    | 固定设置 `ECC-KYBER-SM4-GCM-SM3`                                                 | 使用普通 TLS 默认协商                                |
+| 服务端认证策略   | 要求客户端证书                                                                      | 要求客户端证书                                      |
+| 客户端认证策略   | 验证服务端证书                                                                      | 验证服务端证书                                      |
+| 握手驱动      | `SSL_do_handshake()`                                                         | `SSL_do_handshake()`                         |
+| 默认端口      | `4433`                                                                       | `4443`                                       |
+| 测试目的      | 验证 NTLS/TLCP 双证书 + 混合套件接口路径                                                  | 验证普通 TLS 单证书双向认证接口路径                         |
+
+## 6. 接口测试边界
+
+这组 demo 主要验证接口连通性，不覆盖以下内容：
 
 ```text
-4443
+1. 不测试性能、吞吐量、延迟或并发连接能力
+2. 不测试 HTTP/HTTPS 业务协议
+3. 不测试 Angie 的 ssl_ntls 或 proxy_ssl_ntls 配置路径
+4. 不测试多客户端连接
+5. 不测试长连接、多轮 request/response 或异常断链恢复
+6. 不测试证书生产级部署模型
 ```
 
-## 5. NTLS 与 TLS demo 差异
+其中 `server.c` 和 `server_tls.c` 都只 `accept()` 一个客户端连接，完成一次握手和一轮应用数据收发后退出。
 
-| 项目 | NTLS demo | TLS demo |
-|---|---|---|
-| 源码文件 | `server.c`, `client.c` | `server_tls.c`, `client_tls.c` |
-| 协议方法 | `NTLS_server_method()`, `NTLS_client_method()` | `TLS_server_method()`, `TLS_client_method()` |
-| NTLS 开关 | `SSL_CTX_enable_ntls()` | 不使用 |
-| 证书模型 | 签名证书 + 加密证书 | 单证书 |
-| 套件设置 | `ECC-KYBER-SM4-GCM-SM3` | TLS 默认协商 |
-| 测试端口 | `4433` | `4443` |
-| 测试目的 | 验证国密双证书 PQC/GM NTLS 路径 | 验证标准 TLS 双向认证路径 |
-
-## 6. 不再使用的历史脚本
+## 7. 历史脚本说明
 
 `demo/demo` 下还保留了几个早期硬件/SDF 或本地库布局相关脚本：
 
@@ -194,4 +539,30 @@ km.sh
 load.sh
 ```
 
-这些脚本不属于当前 `tlcpMonoRepo` + Tongsuo demo 流程。为避免在新机器上误用，它们已经改成保护脚本：执行时只会提示使用 `mk.sh`、`server`、`client` 或 `test_tls.sh`，不会再尝试加载旧机器上的 `/home/...` 路径，也不会再链接 `demo/demo/lib` 下的旧库。
+这些脚本不属于当前 `tlcpMonoRepo` + Tongsuo demo 主流程。当前 demo 的推荐入口是：
+
+```text
+mk.sh
+server
+client
+server_tls
+client_tls
+test_tls.sh
+```
+
+在新机器或新的实验环境中，应优先使用 `mk.sh` 编译，并使用 `server/client` 或 `test_tls.sh` 运行测试。
+
+## 8. 推荐排查顺序
+
+如果 demo 运行失败，建议按以下顺序排查：
+
+```text
+1. 确认已在仓库根目录执行 source ./env.sh
+2. 确认 mk.sh 编译成功，并生成 server/client/server_tls/client_tls
+3. 先运行 ./test_tls.sh，确认普通 TLS 路径可用
+4. 再运行 ./server 和 ./client，确认 NTLS/TLCP 路径可用
+5. 若 TLS 成功但 NTLS 失败，重点检查 provider、NTLS 开关、双证书和 ECC-KYBER-SM4-GCM-SM3 套件
+6. 若 TLS 也失败，重点检查 Tongsuo 库路径、证书路径、CA、端口占用和运行目录
+```
+
+从定位问题的角度看，TLS demo 是基础路径对照组，NTLS demo 是双证书与混合套件路径验证组。两者结合可以区分基础 TLS 环境问题和 NTLS/TLCP 特有接口问题。
