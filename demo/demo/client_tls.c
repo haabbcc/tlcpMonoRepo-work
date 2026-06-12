@@ -43,6 +43,7 @@ int main(void)
     const SSL_METHOD *method = NULL;
     char rbuf[MAX_BUF_LEN];
     int n;
+    int ret = 1;
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -53,27 +54,27 @@ int main(void)
     ctx = SSL_CTX_new(method);
     if (ctx == NULL) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     if (SSL_CTX_use_certificate_file(ctx, TLS_CLIENT_CERT, SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     if (SSL_CTX_use_PrivateKey_file(ctx, TLS_CLIENT_KEY, SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     if (!SSL_CTX_check_private_key(ctx)) {
         fprintf(stderr, "TLS client private key does not match certificate\n");
-        return 1;
+        goto err;
     }
 
     if (!SSL_CTX_load_verify_locations(ctx, TLS_CA_CERT, NULL)) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
@@ -81,26 +82,27 @@ int main(void)
     conn = BIO_new_connect(TLS_HOST_PORT);
     if (conn == NULL) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     if (BIO_do_connect(conn) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     ssl = SSL_new(ctx);
     if (ssl == NULL) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     SSL_set_bio(ssl, conn, conn);
+    conn = NULL;
     SSL_set_connect_state(ssl);
 
     if (SSL_do_handshake(ssl) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     printf("TLS client handshake ok\n");
@@ -110,21 +112,30 @@ int main(void)
 
     if (SSL_write(ssl, "hello from tls client", strlen("hello from tls client")) <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     memset(rbuf, 0, sizeof(rbuf));
     n = SSL_read(ssl, rbuf, sizeof(rbuf) - 1);
     if (n <= 0) {
         ERR_print_errors_fp(stderr);
-        return 1;
+        goto err;
     }
 
     printf("TLS recv: %s\n", rbuf);
+    ret = 0;
 
-    SSL_shutdown(ssl);
-    SSL_free(ssl);
-    SSL_CTX_free(ctx);
+err:
+    if (ssl != NULL) {
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+    }
+    if (conn != NULL) {
+        BIO_free_all(conn);
+    }
+    if (ctx != NULL) {
+        SSL_CTX_free(ctx);
+    }
 
-    return 0;
+    return ret;
 }
