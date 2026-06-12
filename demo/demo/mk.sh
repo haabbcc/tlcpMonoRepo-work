@@ -32,7 +32,7 @@ if [ ! -f "${REPO_ROOT}/demo/certs/tls_ca.crt" ]; then
 	echo "Generating TLS test certificates under ${REPO_ROOT}/demo/certs"
 	if ! command -v "${CERT_OPENSSL_BIN}" >/dev/null 2>&1; then
 		echo "Cannot find openssl command: ${CERT_OPENSSL_BIN}" >&2
-		echo "Install openssl or run with CERT_OPENSSL_BIN=/path/to/openssl ./mk.sh" >&2
+		echo "Install openssl or run with CERT_OPENSSL_BIN=/path/to/openssl sh ./mk.sh" >&2
 		exit 1
 	fi
 	echo "Using certificate openssl: ${CERT_OPENSSL_BIN}"
