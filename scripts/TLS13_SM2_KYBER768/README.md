@@ -8,7 +8,7 @@
 - `s_client -enable_sm2_kyber768_tls13`
 - `SSL_CTX_enable_sm2_kyber768_tls13()`
 
-该模式不是 NTLS/TLCP 双证书模式，而是 TLS 1.3 下的 SM2 + Kyber768 混合 key exchange。客户端会发送两个 `KeyShareEntry`：`SM2` 和 `KYBER768`。服务端处理 SM2 classical shared secret，同时对 Kyber768 公钥封装，并把两个 shared secret 组合后进入 TLS 1.3 key schedule。
+该模式不是 NTLS/TLCP 双证书模式，而是 TLS 1.3 下的 SM2 + Kyber768 混合密钥交换。客户端会发送两个 `KeyShareEntry`：`SM2` 和 `KYBER768`。服务端处理 SM2 经典共享密钥，同时对 Kyber768 公钥封装，并把两个共享密钥组合后进入 TLS 1.3 密钥派生流程。
 
 ## 运行
 

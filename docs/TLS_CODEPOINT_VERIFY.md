@@ -1,21 +1,23 @@
-# TLS Codepoint Verification
+# TLS 码点验证快速入口
 
-Use `scripts/TLS_CODEPOINT_VERIFY/verify.sh` to preserve codepoint-level
-evidence for Nginx/Tongsuo SM2+Kyber768 tests.
+该文档指向 `scripts/TLS_CODEPOINT_VERIFY/` 工作流，用于生成本地 Nginx/Tongsuo SM2+Kyber768 测试的码点证据。
 
-The script records:
+```bash
+cd /root/tlcpMonoRepo-work
+bash scripts/TLS_CODEPOINT_VERIFY/verify.sh
+```
 
-- `nginx -t` failure for `Groups X25519MLKEM768`
-- `nginx -t` failure for `Groups curveSM2MLKEM768`
-- `nginx -t` success for `Groups SM2:KYBER768`
-- local Nginx 4434 `s_client -msg -tlsextdebug` log
-- local tcpdump pcap and tshark parse
-- ZoTrus tests for `curveSM2MLKEM768`, `X25519MLKEM768`, and `SM2:KYBER768`
+该流程会记录：
 
-The important distinction is:
+- `nginx -t` 对不同 `Groups` 名称的接受或拒绝结果
+- 本地 `s_client` 日志
+- 本地 tcpdump pcap 与 tshark 解析结果
+- ZoTrus 上 `curveSM2MLKEM768`、`X25519MLKEM768` 和 `SM2:KYBER768` 的探测结果
+
+结论报告写入：
 
 ```text
-X25519MLKEM768 / 0x11EC is generic PQC-TLS.
-SM2+Kyber/ML-KEM768 must be judged by 0x11EE, or by proving that
-SM2:KYBER768 maps to 0x11EE on the wire.
+logs/tls-codepoint-verify/REPORT.md
 ```
+
+注意：只有抓包看到 `0x11EE`，才能说明公开 `curveSM2MLKEM768` 码点路径成立。

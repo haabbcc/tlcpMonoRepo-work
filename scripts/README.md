@@ -9,7 +9,7 @@
 | `Kyber_Dilithium_SM4_GCM_SM3/` | 使用 `certs/1`，测试 `KYBER-DILITHIUM-SM4-GCM-SM3` 的 NTLS/TLCP 双证书路径 |
 | `ECC_Kyber_SM4_GCM_SM3/` | 使用 `certs/loose`，测试 `ECC-KYBER-SM4-GCM-SM3` 的 NTLS/TLCP 路径 |
 | `ECDHE_Kyber_SM4_GCM_SM3/` | 使用 `certs/loose`，测试 `ECDHE-KYBER-SM4-GCM-SM3` 的 NTLS/TLCP 路径 |
-| `TLS13_SM2_KYBER768/` | 测试 TLS 1.3 下的 SM2+Kyber768 混合 key exchange |
+| `TLS13_SM2_KYBER768/` | 测试 TLS 1.3 下的 SM2+Kyber768 混合密钥交换 |
 | `Angie_TLCP_PQC/` | Angie 编译、配置生成、启动、停止和客户端测试脚本 |
 
 ## 使用前提
@@ -68,8 +68,6 @@ demo/demo/test_tls.sh
 | `docs/04_ANGIE_TLCP_MONOREPO_INTEGRATION.md` | Angie 与本项目联调 |
 | `docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md` | NTLS/TLS 通信流程和状态机 |
 
-| `Nginx_TLS_PQC/` | Nginx 1.30.2 build, config rendering, start/stop, and TLS client test scripts |
-
-| `PQC_SUITE_MATRIX/` | Runs the full supported PQC suite handshake matrix and writes logs under `.tmp/pqc-suite-matrix/` |
-
-| `TLS_CODEPOINT_VERIFY/` | TLS Supported Group codepoint verification for local Nginx/Tongsuo and ZoTrus probes |
+| `Nginx_TLS_PQC/` | Nginx 1.30.2 编译、配置渲染、启动/停止和 TLS 客户端测试脚本 |
+| `PQC_SUITE_MATRIX/` | 运行当前支持的 PQC 套件握手矩阵，并将日志写入 `.tmp/pqc-suite-matrix/` |
+| `TLS_CODEPOINT_VERIFY/` | 本地 Nginx/Tongsuo 与 ZoTrus 探测的 TLS Supported Group 码点验证 |

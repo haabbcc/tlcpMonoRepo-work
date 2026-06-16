@@ -1,24 +1,24 @@
-# TLS codepoint verification
+# TLS 码点验证
 
-This workflow verifies SM2+Kyber768 behavior at the TLS Supported Group codepoint level.
+该流程用于在 TLS Supported Group 码点层验证 SM2+Kyber768 行为。
 
-It records:
+它会记录：
 
-- `nginx -t` rejection for `Groups X25519MLKEM768`
-- `nginx -t` rejection for `Groups curveSM2MLKEM768`
-- `nginx -t` success for `Groups SM2:KYBER768`
-- local Nginx TLS 1.3 `s_client -msg` logs
-- local loopback pcap and tshark selected key_share group parse
-- ZoTrus tests for `curveSM2MLKEM768`, `X25519MLKEM768`, and `SM2:KYBER768`
+- `nginx -t` 拒绝 `Groups X25519MLKEM768`
+- `nginx -t` 拒绝 `Groups curveSM2MLKEM768`
+- `nginx -t` 接受 `Groups SM2:KYBER768`
+- 本地 Nginx TLS 1.3 的 `s_client -msg` 日志
+- 本地 loopback pcap 与 tshark 解析出的选中 `key_share` group
+- ZoTrus 上 `curveSM2MLKEM768`、`X25519MLKEM768` 和 `SM2:KYBER768` 的探测结果
 
-Run:
+运行：
 
 ```bash
 cd /root/tlcpMonoRepo-work
 bash scripts/TLS_CODEPOINT_VERIFY/verify.sh
 ```
 
-Outputs:
+输出：
 
 ```text
 logs/tls-codepoint-verify/REPORT.md
@@ -27,7 +27,7 @@ logs/tls-codepoint-verify/*.log
 logs/tls-codepoint-verify/*_extract.txt
 ```
 
-Interpretation rule:
+解释规则：
 
-- If ServerHello selected key_share group is `0x11EE`, the internal `SM2:KYBER768` name maps to the public `curveSM2MLKEM768` codepoint.
-- Otherwise, the run only validates the local experimental `SM2:KYBER768` path and does not prove public `curveSM2MLKEM768 / 0x11EE` interoperability.
+- 如果 ServerHello 选中的 `key_share` group 是 `0x11EE`，说明内部名称 `SM2:KYBER768` 映射到了公开 `curveSM2MLKEM768` 码点。
+- 否则，本轮只能证明本地实验路径 `SM2:KYBER768` 可用，不能证明公开 `curveSM2MLKEM768 / 0x11EE` 互通。

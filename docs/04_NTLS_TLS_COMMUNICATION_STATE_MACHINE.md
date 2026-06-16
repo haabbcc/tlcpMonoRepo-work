@@ -63,7 +63,7 @@ sequenceDiagram
     C->>C: SSL_CTX_set_cipher_list("ECC-KYBER-SM4-GCM-SM3")
 
     C->>S: TCP connect 127.0.0.1:4433
-    C->>S: ClientHello，携带 NTLS cipher list
+    C->>S: ClientHello，携带 NTLS 密码套件列表
     S->>C: ServerHello，选择 ECC-KYBER-SM4-GCM-SM3
     S->>C: 服务端签名证书
     S->>C: 服务端加密证书
