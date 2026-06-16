@@ -109,6 +109,23 @@ cd /root/tlcpMonoRepo-work/demo/demo
 sh mk.sh
 ```
 
+证书生成使用的 `openssl` 选择顺序如下：
+
+1. 显式设置的 `CERT_OPENSSL_BIN`
+2. `env.sh` 中的 `${OPENSSL}`
+3. 仓库内的 `tongsuo/apps/openssl`
+4. 系统 `openssl`
+
+在新机器上建议先执行：
+
+```bash
+source /root/tlcpMonoRepo-work/env.sh
+cd /root/tlcpMonoRepo-work/demo/demo
+./mk.sh
+```
+
+如果系统没有可用的 `openssl.cnf`，`mk.sh` 已经给 `openssl req` 显式使用 `/dev/null` 配置，避免 TLS 测试证书生成阶段阻断 demo 编译。
+
 ## 3. NTLS demo
 
 ### 3.1 测试目标

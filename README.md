@@ -17,6 +17,8 @@
 
 ## 快速开始
 
+建议在 Linux 文件系统中构建，例如 WSL 的 `/root` 下：
+
 ```bash
 cd /root
 git clone https://github.com/haabbcc/tlcpMonoRepo-work.git
@@ -31,17 +33,50 @@ ${OPENSSL} version -a
 ${OPENSSL} list -providers
 ```
 
+不要在 `/mnt/c/...` 这类 Windows 挂载路径中构建，避免权限、符号链接、可执行文件和生成文件处理异常。
+
 ## 文档分类
+
+`docs/` 下文档已经按职责拆成 5 个文件：
 
 | 文档 | 内容 |
 |---|---|
-| [`docs/01_BUILD_TLCP_MONOREPO.md`](docs/01_BUILD_TLCP_MONOREPO.md) | tlcpMonoRepo 编译 |
-| [`docs/02_DEMO_TESTS.md`](docs/02_DEMO_TESTS.md) | demo 测试 |
-| [`docs/03_ANGIE_TLCP_MONOREPO_INTEGRATION.md`](docs/04_ANGIE_TLCP_MONOREPO_INTEGRATION.md) | Angie + tongsuo + tlcpMonoRepo 测试 |
-| [`docs/04_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md`](docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md) | demo 测试过程分析 |
+| [`docs/01_BUILD_TLCP_MONOREPO.md`](docs/01_BUILD_TLCP_MONOREPO.md) | 如何编译 `tlcpMonoRepo` |
+| [`docs/02_DEMO_TESTS.md`](docs/02_DEMO_TESTS.md) | 如何编译和运行 demo 测试 |
+| [`docs/03_BUILD_ANGIE.md`](docs/03_BUILD_ANGIE.md) | 如何编译 Angie |
+| [`docs/04_ANGIE_TLCP_MONOREPO_INTEGRATION.md`](docs/04_ANGIE_TLCP_MONOREPO_INTEGRATION.md) | Angie 如何和 `tlcpMonoRepo` 一起使用 |
+| [`docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md`](docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md) | NTLS/TLS 中 server 与 client 通信测试过程 |
 
+## Demo 概览
+
+NTLS demo 使用 Tongsuo 的国密双证书接口：
+
+```text
+NTLS_server_method()
+NTLS_client_method()
+SSL_CTX_enable_ntls()
+SSL_CTX_use_sign_certificate_file()
+SSL_CTX_use_sign_PrivateKey_file()
+SSL_CTX_use_enc_certificate_file()
+SSL_CTX_use_enc_PrivateKey_file()
+```
+
+普通 TLS demo 使用标准单证书接口：
+
+```text
+TLS_server_method()
+TLS_client_method()
+SSL_CTX_use_certificate_file()
+SSL_CTX_use_PrivateKey_file()
+```
+
+具体测试流程见：
+
+- `docs/02_DEMO_TESTS.md`
+- `docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md`
 
 ## 注意事项
 
 - 证书目录中的证书和私钥仅用于开发、实验和联调。
 - 构建产物、日志、临时文件不应提交。
+- `third_party/angie/` 保留 Angie 源码，不保留 Angie 构建产物。

@@ -1,0 +1,29 @@
+worker_processes 1;
+error_log @TLCP_ROOT@/nginx-work/error.log debug;
+pid @TLCP_ROOT@/nginx-work/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    access_log @TLCP_ROOT@/nginx-work/access.log;
+
+    server {
+        listen 127.0.0.1:8443 ssl;
+        server_name localhost;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_certificate @TLCP_ROOT@/certs/loose/sign_sm2.crt;
+        ssl_certificate_key @TLCP_ROOT@/certs/loose/sign_sm2.key;
+        ssl_client_certificate @TLCP_ROOT@/certs/loose/ca_sm2.crt;
+        ssl_verify_client off;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+        ssl_conf_command Ciphersuites TLS_SM4_GCM_SM3;
+        ssl_conf_command Groups SM2:KYBER768;
+
+        location / {
+            return 200 nginx_tls_pqc_ok;
+        }
+    }
+}

@@ -67,3 +67,9 @@ demo/demo/test_tls.sh
 | `docs/03_BUILD_ANGIE.md` | 编译 Angie |
 | `docs/04_ANGIE_TLCP_MONOREPO_INTEGRATION.md` | Angie 与本项目联调 |
 | `docs/05_NTLS_TLS_COMMUNICATION_STATE_MACHINE.md` | NTLS/TLS 通信流程和状态机 |
+
+| `Nginx_TLS_PQC/` | Nginx 1.30.2 build, config rendering, start/stop, and TLS client test scripts |
+
+| `PQC_SUITE_MATRIX/` | Runs the full supported PQC suite handshake matrix and writes logs under `.tmp/pqc-suite-matrix/` |
+
+| `TLS_CODEPOINT_VERIFY/` | TLS Supported Group codepoint verification for local Nginx/Tongsuo and ZoTrus probes |
